@@ -1,0 +1,353 @@
+openapi: 3.1.0
+info:
+  title: Film Studio Client ↔ Node/Express API Contract
+  version: 1.0.0
+  description: Specification for the communication layer between the React web studio frontend and the Node/Express API Gateway.
+servers:
+  - url: http://localhost:4000/api/v1
+    description: Local Development Node Gateway
+
+paths:
+  /projects:
+    post:
+      summary: Create a new film project
+      operationId: createProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectInput'
+      responses:
+        '201':
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+    get:
+      summary: List all film projects
+      operationId: listProjects
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+                  total:
+                    type: integer
+
+  /projects/{id}:
+    get:
+      summary: Retrieve project details by ID
+      operationId: getProjectById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Project'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /projects/{id}/characters:
+    post:
+      summary: Add or update a character continuity profile
+      operationId: upsertCharacter
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CharacterProfile'
+      responses:
+        '200':
+          description: Character updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/CharacterProfile'
+
+  /projects/workflows/trigger:
+    post:
+      summary: Trigger an agent generation pipeline
+      operationId: triggerProjectWorkflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerWorkflowRequest'
+      responses:
+        '202':
+          description: Workflow queued or awaiting approval
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/WorkflowRunResponse'
+
+components:
+  schemas:
+    CreateProjectInput:
+      type: object
+      required:
+        - title
+        - logline
+        - genre
+      properties:
+        title:
+          type: string
+          example: Neon Horizon
+        logline:
+          type: string
+          example: A rogue detective hunts an AI memory smuggler through neo-Tokyo.
+        genre:
+          type: string
+          example: Cyberpunk Noir
+        aspectRatio:
+          type: string
+          enum: ['16:9', '9:16', '2.39:1', '1:1', '4:3']
+          default: '16:9'
+        visualStyle:
+          type: string
+          enum: ['cinematic_35mm', 'cyberpunk_noir', 'anime_4k', 'documentary_realism', 'vintage_polaroid']
+          default: 'cinematic_35mm'
+
+    CharacterProfile:
+      type: object
+      required:
+        - id
+        - name
+        - role
+        - description
+        - voiceArchetype
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        description:
+          type: string
+        voiceArchetype:
+          type: string
+        visualReferenceSeeds:
+          type: array
+          items:
+            type: string
+        faceEmbeddingId:
+          type: string
+
+    Shot:
+      type: object
+      required:
+        - shotNumber
+        - cameraDirective
+        - actionDescription
+      properties:
+        shotNumber:
+          type: integer
+        cameraDirective:
+          type: string
+        actionDescription:
+          type: string
+        dialogueSpeaker:
+          type: string
+        dialogueText:
+          type: string
+        audioCue:
+          type: string
+        durationSeconds:
+          type: number
+          default: 4.0
+        keyframeImageUrl:
+          type: string
+        renderedVideoUrl:
+          type: string
+        status:
+          type: string
+          enum: [pending, generating, completed, failed]
+
+    Scene:
+      type: object
+      required:
+        - sceneNumber
+        - heading
+        - narrativeSummary
+      properties:
+        sceneNumber:
+          type: integer
+        heading:
+          type: string
+        narrativeSummary:
+          type: string
+        shots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Shot'
+
+    Project:
+      allOf:
+        - $ref: '#/components/schemas/CreateProjectInput'
+        - type: object
+          required:
+            - id
+            - createdAt
+            - updatedAt
+            - status
+          properties:
+            id:
+              type: string
+            createdAt:
+              type: string
+            updatedAt:
+              type: string
+            status:
+              type: string
+              enum: [draft, storyboarding, synthesizing, rendering, completed, failed]
+            characters:
+              type: array
+              items:
+                $ref: '#/components/schemas/CharacterProfile'
+            scenes:
+              type: array
+              items:
+                $ref: '#/components/schemas/Scene'
+
+    TriggerWorkflowRequest:
+      type: object
+      required:
+        - projectId
+        - workflowType
+      properties:
+        projectId:
+          type: string
+        workflowType:
+          type: string
+          enum: [script_ideation, script_to_storyboard, continuity_validation, scene_synthesis, render_timeline]
+        parameters:
+          type: object
+        userFeedback:
+          type: string
+        targetSceneNumber:
+          type: integer
+        targetShotNumber:
+          type: integer
+        interruptOnHumanApproval:
+          type: boolean
+          default: true
+
+    WorkflowRunResponse:
+      type: object
+      required:
+        - runId
+        - projectId
+        - workflowType
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        runId:
+          type: string
+        projectId:
+          type: string
+        workflowType:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, waiting_for_approval, completed, failed, cancelled]
+        currentNode:
+          type: string
+        completedNodes:
+          type: array
+          items:
+            type: string
+        intermediateArtifacts:
+          type: object
+        result:
+          type: object
+        errorMessage:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+  responses:
+    ValidationError:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: string
+                example: VALIDATION_ERROR
+              details:
+                type: array
+                items:
+                  type: object
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: string
+              message:
+                type: string

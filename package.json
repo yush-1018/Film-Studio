@@ -1,0 +1,31 @@
+{
+  "name": "film-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Autonomous & Human-in-the-Loop AI Film & Video Production Studio",
+  "workspaces": [
+    "frontend",
+    "backend-node"
+  ],
+  "scripts": {
+    "lint": "npm run lint --prefix frontend && npm run lint --prefix backend-node",
+    "build": "npm run build --prefix frontend && npm run build --prefix backend-node",
+    "test:node": "npm run test --prefix backend-node",
+    "test:agents": "cd backend-agents && pytest",
+    "test": "npm run test:node && npm run test:agents",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:node": "npm run dev --prefix backend-node",
+    "dev:agents": "cd backend-agents && uvicorn app.main:app --reload --port 8000"
+  },
+  "keywords": [
+    "ai-film",
+    "langgraph",
+    "fastapi",
+    "express",
+    "react",
+    "ffmpeg",
+    "generative-video"
+  ],
+  "author": "Film Studio Team",
+  "license": "MIT"
+}

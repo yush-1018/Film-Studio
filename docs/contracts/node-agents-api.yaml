@@ -1,0 +1,206 @@
+openapi: 3.1.0
+info:
+  title: Film Studio Node/Express ↔ FastAPI/LangGraph API Contract
+  version: 1.0.0
+  description: Contract between Node/Express Gateway and FastAPI/LangGraph Multi-Agent Engine.
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local FastAPI Multi-Agent Engine
+
+paths:
+  /workflows/trigger:
+    post:
+      summary: Initiate an autonomous LangGraph agent workflow
+      operationId: triggerAgentWorkflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerWorkflowRequest'
+      responses:
+        '202':
+          description: Workflow queued and running or paused for human approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRunResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /workflows/{runId}/state:
+    get:
+      summary: Inspect current LangGraph execution state, checkpoints, and artifacts
+      operationId: getWorkflowState
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current execution state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRunResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /workflows/{runId}/resume:
+    post:
+      summary: Resume a paused workflow after human-in-the-loop review
+      operationId: resumeWorkflow
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResumeWorkflowRequest'
+      responses:
+        '200':
+          description: Workflow resumed and progressed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRunResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /workflows/{runId}/cancel:
+    post:
+      summary: Terminate an active workflow execution run
+      operationId: cancelWorkflow
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Workflow cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRunResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+components:
+  schemas:
+    WorkflowType:
+      type: string
+      enum:
+        - script_ideation
+        - script_to_storyboard
+        - continuity_validation
+        - scene_synthesis
+        - render_timeline
+
+    WorkflowRunStatus:
+      type: string
+      enum:
+        - queued
+        - running
+        - waiting_for_approval
+        - completed
+        - failed
+        - cancelled
+
+    TriggerWorkflowRequest:
+      type: object
+      required:
+        - project_id
+        - workflow_type
+      properties:
+        project_id:
+          type: string
+          example: proj_99214
+        workflow_type:
+          $ref: '#/components/schemas/WorkflowType'
+        parameters:
+          type: object
+          additionalProperties: true
+        user_feedback:
+          type: string
+        target_scene_number:
+          type: integer
+        target_shot_number:
+          type: integer
+        interrupt_on_human_approval:
+          type: boolean
+          default: true
+
+    ResumeWorkflowRequest:
+      type: object
+      required:
+        - run_id
+        - approved
+      properties:
+        run_id:
+          type: string
+        approved:
+          type: boolean
+        reviewer_feedback:
+          type: string
+        overrides:
+          type: object
+          additionalProperties: true
+
+    WorkflowRunResponse:
+      type: object
+      required:
+        - run_id
+        - project_id
+        - workflow_type
+        - status
+        - created_at
+        - updated_at
+      properties:
+        run_id:
+          type: string
+        project_id:
+          type: string
+        workflow_type:
+          $ref: '#/components/schemas/WorkflowType'
+        status:
+          $ref: '#/components/schemas/WorkflowRunStatus'
+        current_node:
+          type: string
+        completed_nodes:
+          type: array
+          items:
+            type: string
+        intermediate_artifacts:
+          type: object
+          additionalProperties: true
+        result:
+          type: object
+          additionalProperties: true
+        error_message:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+  responses:
+    ErrorResponse:
+      description: API error payload
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - detail
+            properties:
+              detail:
+                type: string
