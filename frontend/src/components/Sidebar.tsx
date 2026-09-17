@@ -245,7 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               Ayush Raj
             </div>
-            <div style={{ fontSize: '11px', color: '#64748B' }}>2nd Year • 3C</div>
+            <div style={{ fontSize: '11px', color: '#64748B' }}>Film Producer</div>
           </div>
           <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10B981' }} />
         </div>
