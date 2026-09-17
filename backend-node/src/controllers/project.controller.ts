@@ -106,9 +106,19 @@ export const triggerAgentWorkflow = async (
 
     try {
       // Forward request to FastAPI / LangGraph agents service
+      const agentPayload = {
+        project_id: validatedPayload.projectId,
+        workflow_type: validatedPayload.workflowType,
+        parameters: validatedPayload.parameters || {},
+        user_feedback: validatedPayload.userFeedback,
+        target_scene_number: validatedPayload.targetSceneNumber,
+        target_shot_number: validatedPayload.targetShotNumber,
+        interrupt_on_human_approval: validatedPayload.interruptOnHumanApproval ?? true,
+      };
+
       const response = await axios.post<WorkflowRunResponse>(
         `${env.AGENTS_SERVICE_URL}/api/v1/workflows/trigger`,
-        validatedPayload,
+        agentPayload,
         { timeout: 10000 }
       );
 
@@ -116,7 +126,8 @@ export const triggerAgentWorkflow = async (
         success: true,
         data: response.data,
       });
-    } catch {
+    } catch (err: any) {
+      console.warn('[Workflow Trigger] Failed to reach agent backend, falling back to local simulation:', err?.message);
       // If agents service is not reachable in dev or mock mode, generate fallback workflow run response
       const fallbackRun: WorkflowRunResponse = {
         runId: `run_${Date.now()}`,
