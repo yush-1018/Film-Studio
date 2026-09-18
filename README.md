@@ -1,7 +1,7 @@
 # 🎬 Agentic Film Studio
 ### *From idea to cinematic reality, autonomously.*
 
-[![CI Pipeline](https://github.com/ayushraj/film-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/ayushraj/film-studio/actions)
+[![CI Pipeline](https://github.com/yush-1018/Film-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/yush-1018/Film-Studio/actions)
 [![React 19](https://img.shields.io/badge/Frontend-React_19_+_TypeScript-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Node.js](https://img.shields.io/badge/Gateway-Node.js_24_+_Express-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![FastAPI](https://img.shields.io/badge/Agent_Engine-Python_3.13_+_FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -120,7 +120,7 @@ film-studio/
 │   └── contracts/
 │       ├── client-node-api.yaml # OpenAPI 3.1: React ↔ Node Gateway
 │       └── node-agents-api.yaml # OpenAPI 3.1: Node Gateway ↔ FastAPI Agents
-├── frontend/                    # Studio Dashboard & Timeline Editor (Port 5173)
+├── frontend/                    # Studio Dashboard & Timeline Editor (Port 5174)
 │   ├── src/
 │   │   ├── components/          # Topbar, Sidebar, CommandPalette, Modals
 │   │   ├── pages/               # 10 core pages (Dashboard, Script, Storyboard, Timeline, etc.)
@@ -152,8 +152,8 @@ film-studio/
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/ayushraj/film-studio.git
-cd film-studio
+git clone https://github.com/yush-1018/Film-Studio.git
+cd Film-Studio
 ```
 
 ### 2. Option A: Run Services Locally (Development Mode)
@@ -181,7 +181,7 @@ cd frontend
 npm install
 npm run dev
 ```
-*Open in Browser: **[http://localhost:5173](http://localhost:5173)***
+*Open in Browser: **[http://localhost:5174](http://localhost:5174)***
 
 ---
 
@@ -196,7 +196,7 @@ docker-compose up --build
 
 | Service | Port / URL | Description |
 |:---|:---|:---|
-| **Studio Frontend** | `http://localhost:5173` | React 19 Light UI Studio Workspace |
+| **Studio Frontend** | `http://localhost:5174` | React 19 Light UI Studio Workspace |
 | **Node API Gateway** | `http://localhost:4000` | Project CRUD & Workflow Gateway |
 | **FastAPI Agent Core** | `http://localhost:8000` | Multi-Agent Orchestration & Interactive Swagger (`/docs`) |
 | **MinIO S3 Storage** | `http://localhost:9001` | S3 Media Asset Bucket (`minioadmin` / `minioadmin`) |
