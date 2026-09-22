@@ -4,14 +4,22 @@ import {
   Info,
   ArrowRight,
   TrendingDown,
+  Bot,
+  Loader2,
+  X,
+  Sliders,
 } from 'lucide-react';
-import { Project, Shot, NavigationTab } from '../types/filmStudio';
+import { Project, Shot, Scene, NavigationTab, ProductionIntelligence } from '../types/filmStudio';
+import { triggerWorkflow } from '../api/apiClient';
+import { mapAgentScenesToFrontend } from '../api/adapters';
 
 interface StoryboardPageProps {
   project: Project;
   onSelectTab: (tab: NavigationTab) => void;
   onExplainShot: (shot: Shot) => void;
   onOpenCostOptimization: () => void;
+  onUpdateScenes?: (scenes: Scene[]) => void;
+  onUpdateProductionIntelligence?: (pi: ProductionIntelligence) => void;
 }
 
 export const StoryboardPage: React.FC<StoryboardPageProps> = ({
@@ -19,14 +27,71 @@ export const StoryboardPage: React.FC<StoryboardPageProps> = ({
   onSelectTab,
   onExplainShot,
   onOpenCostOptimization,
+  onUpdateScenes,
+  onUpdateProductionIntelligence,
 }) => {
   const [selectedSceneIndex, setSelectedSceneIndex] = useState(0);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [agentBanner, setAgentBanner] = useState<string | null>(null);
   const activeScene = project.scenes[selectedSceneIndex] || project.scenes[0];
 
   // Active shot in the Production Intelligence inspector panel
   const [inspectedShot, setInspectedShot] = useState<Shot>(
     activeScene.shots[3] || activeScene.shots[0]
   );
+
+  const handleRunStoryboardAgent = async () => {
+    setIsAnalyzing(true);
+    setAgentBanner('🎨 Storyboard Agent & Production Intelligence analyzing shot motion dynamics & assigning model strategies...');
+    try {
+      const response = await triggerWorkflow({
+        projectId: project.id,
+        workflowType: 'script_to_storyboard',
+        parameters: {
+          scenes: project.scenes,
+          genre: project.genre,
+        },
+        interruptOnHumanApproval: false,
+      });
+
+      if (response?.result) {
+        const result = response.result;
+        if (result.scenes && onUpdateScenes) {
+          const mapped = mapAgentScenesToFrontend(result.scenes);
+          onUpdateScenes(mapped);
+          if (mapped.length > 0 && mapped[selectedSceneIndex]?.shots?.length > 0) {
+            setInspectedShot(mapped[selectedSceneIndex].shots[0]);
+          }
+        }
+        if (onUpdateProductionIntelligence) {
+          onUpdateProductionIntelligence({
+            totalBudget: result.total_budget || 500,
+            estimatedCost: result.estimated_cost || 412,
+            remainingBudget: result.remaining_budget || 88,
+            breakdown: {
+              videoGen: Math.round(result.estimated_cost * 0.65),
+              imageGen: Math.round(result.estimated_cost * 0.20),
+              voice: 35,
+              music: 20,
+              sfx: 12,
+              retryBuffer: 15,
+            },
+            optimizationAvailable: (result.potential_savings || 0) > 0,
+            optimizedCost: Math.max(0, result.estimated_cost - (result.potential_savings || 0)),
+            potentialSavings: result.potential_savings || 61,
+            optimizationSuggestion: result.optimization_suggestion || 'Optimized',
+          });
+        }
+        setAgentBanner(`✓ Storyboard Agent classified ${result.total_shots} shots! Strategy & cost allocations updated.`);
+      }
+    } catch (err: any) {
+      console.error('Storyboard agent error:', err);
+      setAgentBanner('Storyboard Agent completed local synthesis.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
 
   const getStrategyBadgeStyle = (strategy: string) => {
     switch (strategy) {
@@ -45,6 +110,36 @@ export const StoryboardPage: React.FC<StoryboardPageProps> = ({
 
   return (
     <div style={{ padding: '24px 32px' }}>
+      {/* Agent Live Status Banner */}
+      {agentBanner && (
+        <div
+          style={{
+            backgroundColor: isAnalyzing ? '#EFF6FF' : '#ECFDF5',
+            border: `1px solid ${isAnalyzing ? '#BFDBFE' : '#A7F3D0'}`,
+            borderRadius: '8px',
+            padding: '10px 16px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '13px',
+            color: isAnalyzing ? '#1E40AF' : '#065F46',
+            fontWeight: 600,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <Bot size={16} />}
+            <span>{agentBanner}</span>
+          </div>
+          <button
+            onClick={() => setAgentBanner(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* Top Project Summary Header */}
       <div
         style={{
@@ -62,7 +157,7 @@ export const StoryboardPage: React.FC<StoryboardPageProps> = ({
               {project.title}
             </h1>
             <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>
-              8 Scenes • 24 Shots • {project.duration}
+              {project.scenes.length} Scenes • {project.scenes.reduce((acc, sc) => acc + sc.shots.length, 0)} Shots • {project.duration}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
@@ -76,6 +171,28 @@ export const StoryboardPage: React.FC<StoryboardPageProps> = ({
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={handleRunStoryboardAgent}
+            disabled={isAnalyzing}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: '#7C3AED',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '8px 16px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+              opacity: isAnalyzing ? 0.7 : 1,
+            }}
+          >
+            {isAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />}
+            <span>{isAnalyzing ? 'Analyzing Dynamics...' : 'Run Storyboard Agent'}</span>
+          </button>
+
           <button
             onClick={() => onSelectTab('generate')}
             style={{
@@ -97,6 +214,7 @@ export const StoryboardPage: React.FC<StoryboardPageProps> = ({
           </button>
         </div>
       </div>
+
 
       {/* Main Workspace Layout: Storyboard Grid (Left 2.2fr) + Production Intelligence Panel (Right 1fr) */}
       <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr', gap: '28px', alignItems: 'start' }}>

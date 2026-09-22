@@ -38,7 +38,9 @@ export interface Shot {
   thumbnailGradient: string;
   continuityScore: number; // percentage (e.g. 96)
   motionIntensity: 'low' | 'medium' | 'high';
+  videoUrl?: string;
 }
+
 
 export interface Scene {
   id: string;
@@ -50,6 +52,7 @@ export interface Scene {
   description: string;
   shots: Shot[];
   status: 'ready' | 'generating' | 'pending';
+  fountainScript?: string;
 }
 
 export interface Character {
@@ -169,4 +172,6 @@ export interface Project {
   generationJobs: GenerationJob[];
   qualityScore: number;
   continuityScore: number;
+  masterVideoUrl?: string;
+  masterThumbnailUrl?: string;
 }

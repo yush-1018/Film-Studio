@@ -96,7 +96,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             <div
               style={{
                 height: '180px',
-                backgroundImage: `linear-gradient(to top, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.2) 100%), url('https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80')`,
+                backgroundImage: `linear-gradient(to top, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.2) 100%), url('/generated_videos/gen_sh_1_1.jpg')`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 padding: '20px',

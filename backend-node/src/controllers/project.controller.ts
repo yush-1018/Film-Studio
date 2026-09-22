@@ -11,6 +11,21 @@ import { env } from '../config/env';
 // In-memory mock store for development and testing
 const projectsStore = new Map<string, Project>();
 
+// Auto-seed demo project "proj_last_signal"
+projectsStore.set('proj_last_signal', {
+  id: 'proj_last_signal',
+  title: 'THE LAST SIGNAL',
+  logline: 'A college student discovers a strange signal on his laptop late at night.',
+  genre: 'Sci-Fi Thriller',
+  aspectRatio: '16:9',
+  visualStyle: 'cinematic_35mm',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  status: 'storyboarding',
+  characters: [],
+  scenes: [],
+});
+
 export const createProject = async (
   req: Request,
   res: Response,
@@ -18,7 +33,7 @@ export const createProject = async (
 ): Promise<void> => {
   try {
     const validatedInput = CreateProjectSchema.parse(req.body);
-    const projectId = `proj_${Date.now()}`;
+    const projectId = req.body.id || `proj_${Date.now()}`;
     const timestamp = new Date().toISOString();
 
     const newProject: Project = {
@@ -93,15 +108,24 @@ export const triggerAgentWorkflow = async (
 ): Promise<void> => {
   try {
     const validatedPayload = TriggerWorkflowRequestSchema.parse(req.body);
-    const project = projectsStore.get(validatedPayload.projectId);
+    let project = projectsStore.get(validatedPayload.projectId);
 
     if (!project) {
-      res.status(404).json({
-        success: false,
-        error: 'PROJECT_NOT_FOUND',
-        message: `Project with ID ${validatedPayload.projectId} not found`,
-      });
-      return;
+      // Auto-register project so workflow is never blocked
+      project = {
+        id: validatedPayload.projectId,
+        title: (validatedPayload.parameters?.title as string) || 'New Production',
+        logline: (validatedPayload.parameters?.logline as string) || 'Autonomous cinematic project.',
+        genre: (validatedPayload.parameters?.genre as string) || 'Cinematic',
+        aspectRatio: '16:9',
+        visualStyle: 'cinematic_35mm',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'draft',
+        characters: [],
+        scenes: [],
+      };
+      projectsStore.set(validatedPayload.projectId, project);
     }
 
     try {
@@ -119,7 +143,7 @@ export const triggerAgentWorkflow = async (
       const response = await axios.post<WorkflowRunResponse>(
         `${env.AGENTS_SERVICE_URL}/api/v1/workflows/trigger`,
         agentPayload,
-        { timeout: 10000 }
+        { timeout: 15000 }
       );
 
       res.status(202).json({
@@ -150,3 +174,27 @@ export const triggerAgentWorkflow = async (
     next(error);
   }
 };
+
+export const getWorkflowStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { runId } = req.params;
+    const response = await axios.get(
+      `${env.AGENTS_SERVICE_URL}/api/v1/workflows/${runId}/state`,
+      { timeout: 5000 }
+    );
+    res.status(200).json({
+      success: true,
+      data: response.data,
+    });
+  } catch (error: any) {
+    res.status(error?.response?.status || 500).json({
+      success: false,
+      error: error?.message || 'FAILED_TO_FETCH_WORKFLOW_STATE',
+    });
+  }
+};
+

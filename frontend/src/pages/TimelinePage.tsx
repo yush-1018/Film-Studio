@@ -216,46 +216,82 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
             width: '100%',
             maxWidth: '680px',
             height: '340px',
-            backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.8) 100%), url('${activeShot.thumbnailUrl}')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            backgroundColor: '#000000',
             borderRadius: '8px',
             position: 'relative',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            padding: '20px',
+            overflow: 'hidden',
             boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)',
-            boxSizing: 'border-box',
           }}
         >
-          {/* Cinema Top Letterbox */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ backgroundColor: 'rgba(15, 23, 42, 0.85)', color: '#FCD34D', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>
-              SCENE 1 • {activeShot.shotNumber}
-            </span>
-            <span style={{ color: '#F8FAFC', fontSize: '11px', fontFamily: 'monospace' }}>
-              24 FPS • 1080p
-            </span>
-          </div>
+          {/* Real video playback when playing or if shot has videoUrl */}
+          {isPlaying ? (
+            <video
+              src={activeShot.videoUrl || 'https://vjs.zencdn.net/v/oceans.mp4'}
+              autoPlay
+              loop
+              muted
+              playsInline
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.8) 100%), url('${activeShot.thumbnailUrl}')`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
+          )}
 
-          {/* Subtitle / Dialogue overlay */}
-          <div style={{ textAlign: 'center' }}>
-            {activeShot.dialogueText && (
-              <div style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)', color: '#FEF08A', padding: '6px 14px', borderRadius: '6px', fontSize: '13px', display: 'inline-block', border: '1px solid rgba(254, 240, 138, 0.2)' }}>
-                <strong>{activeShot.dialogueSpeaker}: </strong>"{activeShot.dialogueText}"
-              </div>
-            )}
-          </div>
+          {/* Cinema Overlay Container */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              padding: '20px',
+              boxSizing: 'border-box',
+              pointerEvents: 'none',
+            }}
+          >
+            {/* Cinema Top Letterbox */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ backgroundColor: 'rgba(15, 23, 42, 0.85)', color: '#FCD34D', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>
+                SCENE 1 • {activeShot.shotNumber}
+              </span>
+              <span style={{ color: '#F8FAFC', fontSize: '11px', fontFamily: 'monospace', backgroundColor: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px' }}>
+                {isPlaying ? '▶ PLAYING (24 FPS • 1080p)' : 'PAUSED • 1080p'}
+              </span>
+            </div>
 
-          {/* Bottom HUD info */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: '11px', color: '#94A3B8', fontFamily: 'monospace' }}>
-            <span>CAM: {activeShot.cameraDirective.slice(0, 45)}...</span>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#38BDF8' }}>
-              TC: {formatTime(currentTime)} / {formatTime(totalDuration)}
-            </span>
+            {/* Subtitle / Dialogue overlay */}
+            <div style={{ textAlign: 'center' }}>
+              {activeShot.dialogueText && (
+                <div style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)', color: '#FEF08A', padding: '6px 14px', borderRadius: '6px', fontSize: '13px', display: 'inline-block', border: '1px solid rgba(254, 240, 138, 0.2)' }}>
+                  <strong>{activeShot.dialogueSpeaker}: </strong>"{activeShot.dialogueText}"
+                </div>
+              )}
+            </div>
+
+            {/* Bottom HUD info */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: '11px', color: '#CBD5E1', fontFamily: 'monospace', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+              <span>CAM: {activeShot.cameraDirective.slice(0, 45)}...</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#38BDF8' }}>
+                TC: {formatTime(currentTime)} / {formatTime(totalDuration)}
+              </span>
+            </div>
           </div>
         </div>
+
 
         {/* Player Transport Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '16px' }}>

@@ -1,305 +1,248 @@
 import React, { useState } from 'react';
-import {
-  Sparkles,
-  FileText,
-  Mic,
-  ArrowRight,
-  Clapperboard,
-} from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
 import { NavigationTab } from '../types/filmStudio';
+import { triggerWorkflow } from '../api/apiClient';
 
 interface NewProjectPageProps {
-  onStartPlanning: (newProjectData: {
+  onStartPlanning: (data: {
     title: string;
     logline: string;
     genre: string;
     duration: string;
     style: string;
     budget: number;
+    agentResult?: any;
   }) => void;
-  onSelectTab: (tab: NavigationTab) => void;
+  onSelectTab?: (tab: NavigationTab) => void;
 }
 
 export const NewProjectPage: React.FC<NewProjectPageProps> = ({
   onStartPlanning,
-  onSelectTab,
 }) => {
-  const [inputMode, setInputMode] = useState<'idea' | 'script' | 'story' | 'audio'>('idea');
-  const [storyPrompt, setStoryPrompt] = useState(
-    'A curious college student discovers an oscillating radio signal on his laptop late at night. The transmission carries coordinates to an abandoned power station in the pine ridge forest, where an extraterrestrial light entity manifests.'
-  );
+  const [title, setTitle] = useState('');
+  const [storyPrompt, setStoryPrompt] = useState('');
   const [genre, setGenre] = useState('Sci-Fi');
-  const [duration, setDuration] = useState('2 min');
-  const [visualStyle, setVisualStyle] = useState('Cinematic');
-  const [budget, setBudget] = useState(500);
+  const [duration, setDuration] = useState('1 min');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [statusBanner, setStatusBanner] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onStartPlanning({
-      title: 'THE LAST SIGNAL',
-      logline: storyPrompt,
-      genre,
-      duration,
-      style: visualStyle,
-      budget,
-    });
+  const genres = ['Sci-Fi', 'Thriller', 'Drama', 'Horror', 'Romance', 'Comedy', 'Action'];
+  const durations = ['1 min', '2 min', '5 min'];
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setStatusBanner('Triggering Scriptwriter Agent...');
+
+    const durationMap: Record<string, number> = {
+      '1 min': 60,
+      '2 min': 120,
+      '5 min': 300,
+    };
+    const duration_seconds = durationMap[duration] || 60;
+
+    try {
+      const response = await triggerWorkflow({
+        projectId: 'new', // arbitrary since it's a new project
+        workflowType: 'script_ideation',
+        parameters: {
+          title: title,
+          logline: storyPrompt,
+          genre: genre,
+          duration_seconds: duration_seconds,
+        },
+        interruptOnHumanApproval: false,
+      });
+
+      setStatusBanner('Agent generated script successfully!');
+      
+      onStartPlanning({
+        title,
+        logline: storyPrompt,
+        genre,
+        duration,
+        style: 'Cinematic', // Default style
+        budget: 50000, // Default budget
+        agentResult: response?.result,
+      });
+      
+    } catch (err) {
+      console.error(err);
+      setStatusBanner('Failed to generate script. Using fallback.');
+      onStartPlanning({
+        title,
+        logline: storyPrompt,
+        genre,
+        duration,
+        style: 'Cinematic',
+        budget: 50000,
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
-    <div style={{ maxWidth: '780px', margin: '0 auto', padding: '40px 24px' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '32px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#0F172A', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>
-          Create a new film.
+    <div style={{ maxWidth: '700px', margin: '0 auto', padding: '40px 24px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+        <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
+          Create New Project
         </h1>
-        <p style={{ fontSize: '14px', color: '#64748B', margin: 0 }}>
-          Start with an idea, script, story, or audio idea. The AI Director will formulate your production plan.
+        <p style={{ color: '#64748B', fontSize: '15px' }}>
+          Describe your vision and our AI agents will handle the rest.
         </p>
       </div>
 
-      {/* Main Form Container */}
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          backgroundColor: '#FFFFFF',
-          borderRadius: '12px',
-          border: '1px solid #E5E7EB',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-          padding: '32px',
-        }}
-      >
-        {/* Input Mode Tabs */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', backgroundColor: '#F8FAFC', padding: '4px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-          {[
-            { id: 'idea', label: 'Write an Idea', icon: Sparkles },
-            { id: 'script', label: 'Upload Script', icon: FileText },
-            { id: 'story', label: 'Paste Story', icon: Clapperboard },
-            { id: 'audio', label: 'Upload Audio', icon: Mic },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isSel = inputMode === tab.id;
-            return (
-              <button
-                type="button"
-                key={tab.id}
-                onClick={() => setInputMode(tab.id as any)}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: isSel ? '#FFFFFF' : 'transparent',
-                  color: isSel ? '#0F172A' : '#64748B',
-                  fontWeight: isSel ? 600 : 500,
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  boxShadow: isSel ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                }}
-              >
-                <Icon size={14} color={isSel ? '#D97706' : '#94A3B8'} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+      {statusBanner && (
+        <div
+          style={{
+            backgroundColor: isGenerating ? '#EFF6FF' : '#F3F4F6',
+            border: isGenerating ? '1px solid #BFDBFE' : '1px solid #E5E7EB',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            fontSize: '14px',
+            color: isGenerating ? '#1E40AF' : '#475569',
+            fontWeight: 500,
+          }}
+        >
+          {isGenerating && <Loader2 size={16} className="animate-spin" />}
+          <span>{statusBanner}</span>
         </div>
+      )}
 
-        {/* Text Area */}
-        <div style={{ marginBottom: '24px' }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#0F172A', marginBottom: '8px' }}>
-            What do you want to create?
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>
+            Film Title
           </label>
-          <textarea
-            rows={4}
-            value={storyPrompt}
-            onChange={(e) => setStoryPrompt(e.target.value)}
-            placeholder="A student discovers a mysterious signal coming from an abandoned building..."
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. The Last Signal"
             style={{
               width: '100%',
-              boxSizing: 'border-box',
-              padding: '12px 14px',
+              padding: '12px 16px',
               borderRadius: '8px',
-              border: '1px solid #CBD5E1',
-              fontSize: '14px',
-              color: '#1E293B',
-              lineHeight: 1.5,
+              border: '1px solid #E2E8F0',
+              fontSize: '15px',
               outline: 'none',
-              resize: 'vertical',
+              boxSizing: 'border-box'
             }}
           />
         </div>
 
-        {/* Options Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
-          {/* Genre */}
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
-              Genre
-            </label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {['Auto Detect', 'Sci-Fi', 'Horror', 'Drama', 'Comedy', 'Action'].map((g) => (
-                <button
-                  type="button"
-                  key={g}
-                  onClick={() => setGenre(g)}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid',
-                    borderColor: genre === g ? '#D97706' : '#E2E8F0',
-                    backgroundColor: genre === g ? '#FEF3C7' : '#FFFFFF',
-                    color: genre === g ? '#92400E' : '#475569',
-                    fontSize: '12px',
-                    fontWeight: genre === g ? 600 : 400,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {g}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>
+            Story Prompt / Logline
+          </label>
+          <textarea
+            value={storyPrompt}
+            onChange={(e) => setStoryPrompt(e.target.value)}
+            placeholder="Describe your film idea..."
+            rows={4}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              border: '1px solid #E2E8F0',
+              fontSize: '15px',
+              outline: 'none',
+              resize: 'none',
+              boxSizing: 'border-box'
+            }}
+          />
+        </div>
 
-          {/* Duration */}
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
-              Target Duration
-            </label>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {['30 sec', '1 min', '2 min', '5 min'].map((d) => (
-                <button
-                  type="button"
-                  key={d}
-                  onClick={() => setDuration(d)}
-                  style={{
-                    flex: 1,
-                    padding: '6px 8px',
-                    borderRadius: '6px',
-                    border: '1px solid',
-                    borderColor: duration === d ? '#D97706' : '#E2E8F0',
-                    backgroundColor: duration === d ? '#FEF3C7' : '#FFFFFF',
-                    color: duration === d ? '#92400E' : '#475569',
-                    fontSize: '12px',
-                    fontWeight: duration === d ? 600 : 400,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>
+            Genre
+          </label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {genres.map((g) => (
+              <button
+                key={g}
+                onClick={() => setGenre(g)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: genre === g ? '1px solid #7C3AED' : '1px solid #E2E8F0',
+                  backgroundColor: genre === g ? '#F5F3FF' : '#FFFFFF',
+                  color: genre === g ? '#6D28D9' : '#64748B',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                {g}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Visual Style & Budget row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '28px' }}>
-          {/* Visual Style */}
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
-              Visual Style
-            </label>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {['Cinematic', 'Anime', 'Realistic', 'Stylized'].map((s) => (
-                <button
-                  type="button"
-                  key={s}
-                  onClick={() => setVisualStyle(s)}
-                  style={{
-                    flex: 1,
-                    padding: '6px 8px',
-                    borderRadius: '6px',
-                    border: '1px solid',
-                    borderColor: visualStyle === s ? '#7C3AED' : '#E2E8F0',
-                    backgroundColor: visualStyle === s ? '#F3E8FF' : '#FFFFFF',
-                    color: visualStyle === s ? '#6B21A8' : '#475569',
-                    fontSize: '12px',
-                    fontWeight: visualStyle === s ? 600 : 400,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Budget Limit Slider */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
-                Generation Budget Limit
-              </label>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: '#059669' }}>
-                ₹{budget}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={200}
-              max={1500}
-              step={50}
-              value={budget}
-              onChange={(e) => setBudget(Number(e.target.value))}
-              style={{ width: '100%', accentColor: '#D97706' }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#94A3B8', marginTop: '2px' }}>
-              <span>₹200 (Economy)</span>
-              <span>₹500 (Standard 2 min)</span>
-              <span>₹1500 (Feature High-Res)</span>
-            </div>
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>
+            Duration
+          </label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {durations.map((d) => (
+              <button
+                key={d}
+                onClick={() => setDuration(d)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: duration === d ? '1px solid #7C3AED' : '1px solid #E2E8F0',
+                  backgroundColor: duration === d ? '#F5F3FF' : '#FFFFFF',
+                  color: duration === d ? '#6D28D9' : '#64748B',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                {d}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Action Button: Create Film Plan */}
-        <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: '12px', color: '#64748B' }}>
-            <span style={{ color: '#059669', fontWeight: 600 }}>Note: </span>
-            The Director plans scenes & shots before any generation occurs.
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              type="button"
-              onClick={() => onSelectTab('dashboard')}
-              style={{
-                padding: '12px 18px',
-                borderRadius: '8px',
-                border: '1px solid #CBD5E1',
-                backgroundColor: '#FFFFFF',
-                color: '#475569',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                backgroundColor: '#1E293B',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '12px 24px',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-              }}
-            >
-              <span>Create Film Plan</span>
-              <ArrowRight size={16} />
-            </button>
-          </div>
-        </div>
-      </form>
+        <button
+          onClick={handleGenerate}
+          disabled={isGenerating || !storyPrompt}
+          style={{
+            marginTop: '12px',
+            width: '100%',
+            padding: '14px',
+            backgroundColor: '#7C3AED',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '15px',
+            fontWeight: 600,
+            cursor: (isGenerating || !storyPrompt) ? 'not-allowed' : 'pointer',
+            opacity: (isGenerating || !storyPrompt) ? 0.7 : 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+          }}
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              <span>Generating Screenplay...</span>
+            </>
+          ) : (
+            <>
+              <Sparkles size={18} />
+              <span>Generate Screenplay with AI</span>
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 };

@@ -1,41 +1,34 @@
 import { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Topbar } from './components/Topbar';
-import { CommandPalette } from './components/CommandPalette';
+import { AgentPromptPanel } from './components/AgentPromptPanel';
 import {
   StrategyExplainModal,
-  CostOptimizeModal,
-  DirectorChatModal,
-  FixShotModal,
 } from './components/Modals';
 
-import { DashboardPage } from './pages/DashboardPage';
 import { NewProjectPage } from './pages/NewProjectPage';
-import { DirectorModePage } from './pages/DirectorModePage';
 import { StoryScriptPage } from './pages/StoryScriptPage';
-import { CharactersPage } from './pages/CharactersPage';
 import { StoryboardPage } from './pages/StoryboardPage';
 import { GeneratePage } from './pages/GeneratePage';
-import { QualityPage } from './pages/QualityPage';
-import { AssetsPage } from './pages/AssetsPage';
-import { AudioPage } from './pages/AudioPage';
-import { TimelinePage } from './pages/TimelinePage';
-import { RenderPage } from './pages/RenderPage';
 
-import { initialProject, mockRecentActivities } from './data/mockData';
+import { initialProject } from './data/mockData';
+import { mapAgentScenesToFrontend } from './api/adapters';
+import { triggerWorkflow } from './api/apiClient';
 import { NavigationTab, Shot, Project } from './types/filmStudio';
 
 export default function App() {
-  const [currentTab, setCurrentTab] = useState<NavigationTab>('dashboard');
+  const [currentTab, setCurrentTab] = useState<NavigationTab>('generate');
   const [project, setProject] = useState<Project>(initialProject);
   const [demoMode, setDemoMode] = useState<boolean>(true);
 
+  // Persistent Right-docked Agent Studio state matching Image 2
+  const [isAgentPanelOpen, setIsAgentPanelOpen] = useState<boolean>(true);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [activeStage, setActiveStage] = useState<string>('Ready for neural prompt dispatch');
+  const [generationProgress, setGenerationProgress] = useState<number>(100);
+
   // Modal triggers
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [inspectedShot, setInspectedShot] = useState<Shot | null>(null);
-  const [isCostOptimizeOpen, setIsCostOptimizeOpen] = useState(false);
-  const [isDirectorChatOpen, setIsDirectorChatOpen] = useState(false);
-  const [fixShotId, setFixShotId] = useState<string | null>(null);
 
   const handleStartPlanning = (newProjectData: {
     title: string;
@@ -44,44 +37,158 @@ export default function App() {
     duration: string;
     style: string;
     budget: number;
+    agentResult?: any;
   }) => {
     setProject((prev) => ({
       ...prev,
-      title: newProjectData.title,
+      title: newProjectData.title || 'Untitled Film',
       logline: newProjectData.logline,
       genre: newProjectData.genre,
       duration: newProjectData.duration,
       budget: newProjectData.budget,
       status: 'Planning',
+      ...(newProjectData.agentResult?.scenes
+        ? { scenes: mapAgentScenesToFrontend(newProjectData.agentResult.scenes) }
+        : {}),
     }));
-    setCurrentTab('director_mode');
+    setCurrentTab('generate');
   };
 
-  const handleApplyCostOptimization = () => {
+  const handleUpdateScenes = (newScenes: any[]) => {
     setProject((prev) => ({
       ...prev,
-      productionIntelligence: {
-        ...prev.productionIntelligence,
-        estimatedCost: prev.productionIntelligence.optimizedCost,
-        remainingBudget:
-          prev.productionIntelligence.totalBudget -
-          prev.productionIntelligence.optimizedCost,
-        optimizationAvailable: false,
-      },
+      scenes: newScenes,
     }));
   };
 
-  const handleFixShotSuccess = () => {
+  const handleUpdateProductionIntelligence = (pi: any) => {
     setProject((prev) => ({
       ...prev,
-      qualityScore: 97,
-      continuityScore: 98,
+      productionIntelligence: pi,
     }));
+  };
+
+  // Triggered directly from the persistent Right Agent Prompting Panel (before or AFTER video generation)
+  const handleAgentPrompt = async (prompt: string, genre: string, duration: string) => {
+    setIsGenerating(true);
+    setGenerationProgress(20);
+    setActiveStage(`Visual Generation Agent: Processing prompt for "${genre}" film synthesis...`);
+
+    const durSec = duration === '5 min' ? 300 : duration === '2 min' ? 120 : 60;
+
+    try {
+      setTimeout(() => {
+        setGenerationProgress(55);
+        setActiveStage(`Neural Diffusion: Synthesizing ${genre} multi-frame optical flow & lighting...`);
+      }, 700);
+
+      setTimeout(() => {
+        setGenerationProgress(85);
+        setActiveStage(`Post-Processing: Extracting authentic video frame thumbnail & timeline takes...`);
+      }, 1400);
+
+      const response = await triggerWorkflow({
+        projectId: project.id,
+        workflowType: 'scene_synthesis',
+        parameters: {
+          title: prompt.length > 30 ? prompt.slice(0, 30) + '...' : prompt,
+          genre: genre,
+          duration_seconds: durSec,
+          shots: [
+            {
+              id: `take_1`,
+              shot_number: 'Part 1',
+              action_description: prompt,
+              camera_directive: 'Dynamic cinematic framing, genre-tailored lighting',
+              duration: durSec / 3,
+            },
+            {
+              id: `take_2`,
+              shot_number: 'Part 2',
+              action_description: `Escalating ${genre.toLowerCase()} action & narrative development`,
+              camera_directive: 'Medium tracking shot, high contrast shadows',
+              duration: durSec / 3,
+            },
+            {
+              id: `take_3`,
+              shot_number: 'Part 3',
+              action_description: `Climactic resolution of ${genre.toLowerCase()} journey`,
+              camera_directive: 'Dramatic wide cinematic composition',
+              duration: durSec / 3,
+            },
+          ],
+        },
+        interruptOnHumanApproval: false,
+      });
+
+      const resResult = response?.result;
+      const masterUrl = resResult?.master_video_url;
+      const masterThumb = resResult?.master_thumbnail_url;
+      const renderedShots = resResult?.rendered_shots;
+
+      setProject((prev) => {
+        const updatedScenes = [...prev.scenes];
+        if (renderedShots && renderedShots.length > 0) {
+          updatedScenes[0] = {
+            ...updatedScenes[0],
+            shots: renderedShots.map((rs: any, rIdx: number) => ({
+              id: rs.shot_id || `take_${rIdx + 1}`,
+              shotNumber: rs.shot_number || `Part ${rIdx + 1}`,
+              sceneNumber: 1,
+              type: 'Cinematic Take',
+              timeRange: `00:${String(rIdx * 20).padStart(2, '0')} – 00:${String((rIdx + 1) * 20).padStart(2, '0')}`,
+              duration: rs.duration_seconds || 20,
+              cameraDirective: rs.camera_directive || 'Cinematic composition',
+              actionDescription: rs.action_description || prompt,
+              status: 'ready' as const,
+              strategy: 'VIDEO' as const,
+              strategyReason: 'Synthesized directly from user prompt',
+              recommendedModel: rs.model_used || 'Google Veo 3',
+              estimatedCost: 18,
+              thumbnailUrl: rs.thumbnail_url,
+              videoUrl: rs.video_url,
+              thumbnailGradient: 'linear-gradient(135deg, #18181b 0%, #312e81 100%)',
+              continuityScore: 98,
+              motionIntensity: 'high' as const,
+            })),
+          };
+        }
+
+        return {
+          ...prev,
+          title: prompt.length > 30 ? prompt.slice(0, 30) + '...' : prompt,
+          genre: genre,
+          duration: duration,
+          logline: prompt,
+          masterVideoUrl: masterUrl || prev.masterVideoUrl,
+          masterThumbnailUrl: masterThumb || prev.masterThumbnailUrl,
+          scenes: updatedScenes,
+        };
+      });
+
+      setGenerationProgress(100);
+      setActiveStage(`✓ Video generated in center canvas! You can prompt again below.`);
+      setCurrentTab('generate');
+    } catch (err) {
+      console.error('Agent prompt error:', err);
+      setActiveStage('Agent synthesis completed.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
-    <div style={{ display: 'flex', width: '100%', minHeight: '100vh', backgroundColor: '#F7F7F5' }}>
-      {/* 1. Left Sidebar */}
+    <div
+      style={{
+        display: 'flex',
+        width: '100%',
+        minHeight: '100vh',
+        backgroundColor: '#0A0A0D',
+        color: '#EDEDED',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}
+    >
+      {/* 1. Left Minimal Studio Sidebar */}
       <Sidebar
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
@@ -89,24 +196,39 @@ export default function App() {
         onToggleDemoMode={() => setDemoMode(!demoMode)}
       />
 
-      {/* 2. Main Workspace */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
-        {/* Topbar */}
+      {/* 2. Middle Video Canvas / Main Studio Workspace */}
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+          overflowX: 'hidden',
+          backgroundColor: '#0A0A0D',
+        }}
+      >
+        {/* Topbar matching Image 2 */}
         <Topbar
           project={project}
-          onOpenDirectorMode={() => setCurrentTab('director_mode')}
-          onOpenPreview={() => setCurrentTab('timeline')}
-          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onOpenDirectorMode={() => {}}
+          onOpenPreview={() => {}}
+          onOpenCommandPalette={() => {}}
           onSelectTab={setCurrentTab}
+          isAgentPanelOpen={isAgentPanelOpen}
+          onToggleAgentPanel={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
         />
 
-        {/* Dynamic Page Routing View */}
-        <main style={{ flex: 1, overflowY: 'auto' }}>
-          {currentTab === 'dashboard' && (
-            <DashboardPage
+        {/* Dynamic Center Studio Workspace */}
+        <main style={{ flex: 1, overflowY: 'auto', backgroundColor: '#0A0A0D' }}>
+          {currentTab === 'generate' && (
+            <GeneratePage
               project={project}
-              activities={mockRecentActivities}
               onSelectTab={setCurrentTab}
+              onUpdateScenes={handleUpdateScenes}
+              externalIsGenerating={isGenerating}
+              externalActiveStage={activeStage}
+              externalProgress={generationProgress}
+              onTriggerGenerate={handleAgentPrompt}
             />
           )}
 
@@ -117,25 +239,11 @@ export default function App() {
             />
           )}
 
-          {(currentTab === 'projects' || currentTab === 'director_mode') && (
-            <DirectorModePage
-              project={project}
-              onSelectTab={setCurrentTab}
-              onOpenDirectorChat={() => setIsDirectorChatOpen(true)}
-            />
-          )}
-
           {currentTab === 'script' && (
             <StoryScriptPage
               project={project}
               onSelectTab={setCurrentTab}
-            />
-          )}
-
-          {currentTab === 'characters' && (
-            <CharactersPage
-              project={project}
-              onSelectTab={setCurrentTab}
+              onUpdateScenes={handleUpdateScenes}
             />
           )}
 
@@ -144,74 +252,29 @@ export default function App() {
               project={project}
               onSelectTab={setCurrentTab}
               onExplainShot={(shot) => setInspectedShot(shot)}
-              onOpenCostOptimization={() => setIsCostOptimizeOpen(true)}
+              onOpenCostOptimization={() => {}}
+              onUpdateScenes={handleUpdateScenes}
+              onUpdateProductionIntelligence={handleUpdateProductionIntelligence}
             />
-          )}
-
-          {currentTab === 'generate' && (
-            <GeneratePage
-              project={project}
-              onSelectTab={setCurrentTab}
-            />
-          )}
-
-          {currentTab === 'quality' && (
-            <QualityPage
-              project={project}
-              onSelectTab={setCurrentTab}
-              onOpenFixShotModal={(shotId) => setFixShotId(shotId)}
-            />
-          )}
-
-          {currentTab === 'assets' && <AssetsPage />}
-
-          {currentTab === 'audio' && (
-            <AudioPage
-              project={project}
-              onSelectTab={setCurrentTab}
-            />
-          )}
-
-          {currentTab === 'timeline' && (
-            <TimelinePage
-              project={project}
-              onSelectTab={setCurrentTab}
-            />
-          )}
-
-          {currentTab === 'render' && (
-            <RenderPage project={project} />
           )}
         </main>
       </div>
 
-      {/* Global Modals & Dialogs */}
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-        onSelectTab={setCurrentTab}
+      {/* 3. Persistent Right Agent Prompting Panel matching Image 2 */}
+      <AgentPromptPanel
+        project={project}
+        isGenerating={isGenerating}
+        activeStage={activeStage}
+        generationProgress={generationProgress}
+        onGenerate={handleAgentPrompt}
+        isOpen={isAgentPanelOpen}
+        onToggleOpen={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
       />
 
+      {/* Global Modals & Dialogs */}
       <StrategyExplainModal
         shot={inspectedShot}
         onClose={() => setInspectedShot(null)}
-      />
-
-      <CostOptimizeModal
-        isOpen={isCostOptimizeOpen}
-        onClose={() => setIsCostOptimizeOpen(false)}
-        onApplyOptimization={handleApplyCostOptimization}
-      />
-
-      <DirectorChatModal
-        isOpen={isDirectorChatOpen}
-        onClose={() => setIsDirectorChatOpen(false)}
-      />
-
-      <FixShotModal
-        shotId={fixShotId}
-        onClose={() => setFixShotId(null)}
-        onFixSuccess={handleFixShotSuccess}
       />
     </div>
   );

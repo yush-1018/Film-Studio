@@ -90,8 +90,87 @@ class WorkflowRunResponse(BaseModel):
     updated_at: str
 
 
+
+class ProductionStrategy(str, Enum):
+    VIDEO = "VIDEO"
+    IMAGE_MOTION = "IMAGE_MOTION"
+    REUSE = "REUSE"
+    EXTEND = "EXTEND"
+    TRANSITION = "TRANSITION"
+
+
 class ResumeWorkflowRequest(BaseModel):
     run_id: str
     approved: bool
     reviewer_feedback: Optional[str] = None
     overrides: Optional[Dict[str, Any]] = None
+
+
+class ScriptShot(BaseModel):
+    id: str
+    shot_number: str  # e.g., "Shot 1.1"
+    scene_number: int
+    shot_type: str  # "Wide Shot", "Close Up", "Medium Shot", etc.
+    duration: float = 4.0
+    camera_directive: str
+    action_description: str
+    dialogue_speaker: Optional[str] = None
+    dialogue_text: Optional[str] = None
+    audio_cue: Optional[str] = None
+    motion_intensity: str = "medium"  # low, medium, high
+
+
+class ScriptScene(BaseModel):
+    id: str
+    scene_number: int
+    title: str
+    slugline: str  # e.g., "INT. HOSTEL ROOM - NIGHT"
+    description: str
+    duration: float = 15.0
+    fountain_script: Optional[str] = None
+    shots: List[ScriptShot] = Field(default_factory=list)
+
+
+class ScriptIdeationResult(BaseModel):
+    title: str
+    logline: str
+    genre: str
+    synopsis: str
+    scenes: List[ScriptScene] = Field(default_factory=list)
+    suggested_characters: List[Dict[str, Any]] = Field(default_factory=list)
+    fountain_full_script: Optional[str] = None
+
+
+class StoryboardShot(ScriptShot):
+    strategy: ProductionStrategy = ProductionStrategy.VIDEO
+    strategy_reason: str
+    recommended_model: str
+    estimated_cost: float
+    thumbnail_url: str = "/generated_videos/gen_default.jpg"
+    video_url: Optional[str] = None
+    thumbnail_gradient: str = "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)"
+    continuity_score: int = 95
+    status: str = "ready"
+
+
+class StoryboardScene(BaseModel):
+    id: str
+    scene_number: int
+    title: str
+    slugline: str
+    description: str
+    duration: float
+    fountain_script: Optional[str] = None
+    shots: List[StoryboardShot] = Field(default_factory=list)
+
+
+class StoryboardResult(BaseModel):
+    project_id: str
+    total_shots: int
+    estimated_cost: float
+    total_budget: float = 500.0
+    remaining_budget: float
+    potential_savings: float
+    optimization_suggestion: str
+    scenes: List[StoryboardScene] = Field(default_factory=list)
+

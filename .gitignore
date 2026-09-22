@@ -50,3 +50,4 @@ media_storage/
 temp_renders/
 logs/
 *.log
+*.tsbuildinfo
