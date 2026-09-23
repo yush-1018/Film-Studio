@@ -6,6 +6,10 @@ import {
   StrategyExplainModal,
 } from './components/Modals';
 
+import { ProjectsPage } from './pages/ProjectsPage';
+import { CreateFilmPage } from './pages/CreateFilmPage';
+import { ProductionPage } from './pages/ProductionPage';
+import { FilmViewerPage } from './pages/FilmViewerPage';
 import { NewProjectPage } from './pages/NewProjectPage';
 import { StoryScriptPage } from './pages/StoryScriptPage';
 import { StoryboardPage } from './pages/StoryboardPage';
@@ -17,9 +21,9 @@ import { triggerWorkflow } from './api/apiClient';
 import { NavigationTab, Shot, Project } from './types/filmStudio';
 
 export default function App() {
-  const [currentTab, setCurrentTab] = useState<NavigationTab>('generate');
+  const [currentTab, setCurrentTab] = useState<NavigationTab>('projects');
   const [project, setProject] = useState<Project>(initialProject);
-  const [demoMode, setDemoMode] = useState<boolean>(true);
+  const [demoMode, setDemoMode] = useState<boolean>(false);
 
   // Persistent Right-docked Agent Studio state matching Image 2
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState<boolean>(true);
@@ -37,21 +41,26 @@ export default function App() {
     duration: string;
     style: string;
     budget: number;
+    projectDoc?: Project;
     agentResult?: any;
   }) => {
-    setProject((prev) => ({
-      ...prev,
-      title: newProjectData.title || 'Untitled Film',
-      logline: newProjectData.logline,
-      genre: newProjectData.genre,
-      duration: newProjectData.duration,
-      budget: newProjectData.budget,
-      status: 'Planning',
-      ...(newProjectData.agentResult?.scenes
-        ? { scenes: mapAgentScenesToFrontend(newProjectData.agentResult.scenes) }
-        : {}),
-    }));
-    setCurrentTab('generate');
+    if (newProjectData.projectDoc) {
+      setProject(newProjectData.projectDoc);
+    } else {
+      setProject((prev) => ({
+        ...prev,
+        title: newProjectData.title || 'Untitled Film',
+        logline: newProjectData.logline,
+        genre: newProjectData.genre,
+        duration: newProjectData.duration,
+        budget: newProjectData.budget,
+        status: 'Planning',
+        ...(newProjectData.agentResult?.scenes
+          ? { scenes: mapAgentScenesToFrontend(newProjectData.agentResult.scenes) }
+          : {}),
+      }));
+    }
+    setCurrentTab('production');
   };
 
   const handleUpdateScenes = (newScenes: any[]) => {
@@ -127,7 +136,7 @@ export default function App() {
       const renderedShots = resResult?.rendered_shots;
 
       setProject((prev) => {
-        const updatedScenes = [...prev.scenes];
+        const updatedScenes = [...(prev.scenes || [])];
         if (renderedShots && renderedShots.length > 0) {
           updatedScenes[0] = {
             ...updatedScenes[0],
@@ -220,6 +229,38 @@ export default function App() {
 
         {/* Dynamic Center Studio Workspace */}
         <main style={{ flex: 1, overflowY: 'auto', backgroundColor: '#0A0A0D' }}>
+          {currentTab === 'projects' && (
+            <ProjectsPage
+              onSelectTab={setCurrentTab}
+              onSelectProject={(selected) => {
+                setProject(selected);
+                setCurrentTab('production');
+              }}
+            />
+          )}
+
+          {currentTab === 'create' && (
+            <CreateFilmPage
+              onStartPlanning={handleStartPlanning}
+              onSelectTab={setCurrentTab}
+            />
+          )}
+
+          {currentTab === 'production' && (
+            <ProductionPage
+              project={project}
+              onSelectTab={setCurrentTab}
+              onSelectProject={setProject}
+            />
+          )}
+
+          {currentTab === 'viewer' && (
+            <FilmViewerPage
+              project={project}
+              onSelectTab={setCurrentTab}
+            />
+          )}
+
           {currentTab === 'generate' && (
             <GeneratePage
               project={project}

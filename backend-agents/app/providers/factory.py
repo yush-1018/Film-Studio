@@ -7,6 +7,7 @@ from app.providers.base import (
     BaseTTSAdapter,
     BaseVideoAdapter,
 )
+from app.providers.local_video_adapter import LocalVideoAdapter, ExternalVideoAdapter
 from app.providers.mock_adapters import (
     MockImageAdapter,
     MockLLMAdapter,
@@ -24,7 +25,7 @@ class ProviderRegistry:
         self._stt_providers: Dict[str, Type[BaseSTTAdapter]] = {"mock": MockSTTAdapter}
         self._tts_providers: Dict[str, Type[BaseTTSAdapter]] = {"mock": MockTTSAdapter}
         self._image_providers: Dict[str, Type[BaseImageAdapter]] = {"mock": MockImageAdapter}
-        self._video_providers: Dict[str, Type[BaseVideoAdapter]] = {"mock": MockVideoAdapter}
+        self._video_providers: Dict[str, Type[BaseVideoAdapter]] = {"mock": MockVideoAdapter, "local": LocalVideoAdapter, "external": ExternalVideoAdapter}
 
     # Registration methods
     def register_llm(self, name: str, provider_cls: Type[BaseLLMAdapter]) -> None:

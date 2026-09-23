@@ -1,6 +1,5 @@
 import {
   PlusCircle,
-  FileText,
   Camera,
   Sparkles,
   Sliders,
@@ -26,10 +25,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       label: 'Studio',
       items: [
-        { id: 'generate' as NavigationTab, label: 'Video Studio', icon: Sparkles },
-        { id: 'new_project' as NavigationTab, label: 'New Project', icon: PlusCircle },
-        { id: 'script' as NavigationTab, label: 'Story & Script', icon: FileText },
-        { id: 'storyboard' as NavigationTab, label: 'Storyboard', icon: Camera },
+        { id: 'projects' as NavigationTab, label: 'Projects', icon: Film },
+        { id: 'create' as NavigationTab, label: 'Create Film', icon: PlusCircle },
+        { id: 'production' as NavigationTab, label: 'Production', icon: Sparkles },
+        { id: 'viewer' as NavigationTab, label: 'Film Viewer', icon: Camera },
       ],
     },
   ];

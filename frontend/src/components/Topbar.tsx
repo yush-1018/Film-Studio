@@ -41,7 +41,7 @@ export const Topbar: React.FC<TopbarProps> = ({
       {/* Left: Active project title & genre badge */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button
-          onClick={() => onSelectTab('generate')}
+          onClick={() => onSelectTab('projects')}
           style={{
             background: 'transparent',
             border: 'none',

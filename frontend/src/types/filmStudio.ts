@@ -1,10 +1,12 @@
 // Types for Agentic Film Studio
 
 export type NavigationTab =
+  | 'projects'
+  | 'create'
+  | 'production'
+  | 'viewer'
   | 'dashboard'
   | 'new_project'
-  | 'projects'
-  | 'director_mode'
   | 'script'
   | 'storyboard'
   | 'generate'
@@ -46,12 +48,14 @@ export interface Scene {
   id: string;
   sceneNumber: number;
   title: string;
-  timeRange: string;
-  duration: number; // in seconds
-  slugline: string; // e.g. "INT. HOSTEL ROOM – NIGHT"
-  description: string;
+  timeRange?: string;
+  duration?: number; // in seconds
+  slugline?: string; // e.g. "INT. HOSTEL ROOM – NIGHT"
+  description?: string;
+  heading?: string;
+  narrativeSummary?: string;
   shots: Shot[];
-  status: 'ready' | 'generating' | 'pending';
+  status?: string;
   fountainScript?: string;
 }
 
@@ -83,8 +87,8 @@ export interface Location {
 export interface FilmBible {
   characters: Character[];
   locations: Location[];
-  props: string[];
-  visualStyle: {
+  props?: string[];
+  visualStyle?: {
     name: string;
     description: string;
     lighting: string;
@@ -157,21 +161,39 @@ export interface AssetItem {
 export interface Project {
   id: string;
   title: string;
-  logline: string;
+  logline?: string;
   genre: string;
-  duration: string; // "2 min"
-  durationSeconds: number;
-  progress: number; // percentage
-  status: 'Planning' | 'Script' | 'Characters' | 'Storyboard' | 'Generating' | 'Audio' | 'Editing' | 'Rendering' | 'Complete';
-  lastEdited: string;
-  aspectRatio: string;
-  budget: number;
+  duration?: string; // "2 min"
+  durationSeconds?: number;
+  progress?: number; // percentage
+  status: string; // 'Draft' | 'Planning' | 'Generating' | 'completed' | 'failed' | etc
+  ownerId?: string;
+  input?: {
+    storyPrompt?: string;
+    rawTextInput?: string;
+    audioTranscript?: string;
+  };
+  preferences?: {
+    durationSeconds?: number;
+    targetCostBudget?: number;
+    visualStyle?: string;
+    cameraMotionBias?: string;
+    pacing?: string;
+  };
+  generation?: any;
+  characters?: any[];
+  locations?: any[];
+  lastEdited?: string;
+  aspectRatio?: string;
+  budget?: number;
   scenes: Scene[];
-  bible: FilmBible;
-  productionIntelligence: ProductionIntelligence;
-  generationJobs: GenerationJob[];
-  qualityScore: number;
-  continuityScore: number;
+  bible?: FilmBible;
+  productionIntelligence?: any;
+  generationJobs?: GenerationJob[];
+  qualityScore?: number;
+  continuityScore?: number;
   masterVideoUrl?: string;
   masterThumbnailUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

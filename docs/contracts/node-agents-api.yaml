@@ -173,6 +173,22 @@ components:
           $ref: '#/components/schemas/WorkflowType'
         status:
           $ref: '#/components/schemas/WorkflowRunStatus'
+        current_stage:
+          type: string
+          enum: [understanding, screenplay, storyboard, visuals, continuity, voice, sound, editing, completed, failed]
+        stage_results:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [pending, passed, failed]
+        progress:
+          type: number
+          minimum: 0
+          maximum: 100
+        cost_used:
+          type: number
+        cost_budget:
+          type: number
         current_node:
           type: string
         completed_nodes:

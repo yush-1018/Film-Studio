@@ -51,3 +51,8 @@ temp_renders/
 logs/
 *.log
 *.tsbuildinfo
+*.dll
+frontend/public/generated_videos/*.mp4
+frontend/public/generated_videos/*.webm
+frontend/public/generated_videos/*.jpg
+frontend/public/generated_audio/

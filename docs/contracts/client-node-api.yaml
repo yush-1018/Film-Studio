@@ -238,12 +238,68 @@ components:
         - type: object
           required:
             - id
+            - ownerId
             - createdAt
             - updatedAt
             - status
           properties:
             id:
               type: string
+            ownerId:
+              type: string
+              description: Project owner ID (single-tenant dev mode default: user_ayush)
+            input:
+              type: object
+              required:
+                - type
+                - content
+              properties:
+                type:
+                  type: string
+                  enum: [script, story, audio]
+                content:
+                  type: string
+                audioUrl:
+                  type: string
+                transcript:
+                  type: string
+            preferences:
+              type: object
+              properties:
+                durationSeconds:
+                  type: integer
+                  minimum: 60
+                  maximum: 300
+                aspectRatio:
+                  type: string
+                  enum: ['16:9', '9:16', '1:1']
+                visualStyle:
+                  type: string
+                language:
+                  type: string
+                voice:
+                  type: object
+                music:
+                  type: object
+                subtitles:
+                  type: boolean
+            generation:
+              type: object
+              properties:
+                jobId:
+                  type: string
+                stage:
+                  type: string
+                progress:
+                  type: number
+                stageResults:
+                  type: object
+                costUsed:
+                  type: number
+                costBudget:
+                  type: number
+                error:
+                  type: string
             createdAt:
               type: string
             updatedAt:
