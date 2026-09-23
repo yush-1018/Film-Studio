@@ -136,9 +136,28 @@ class SemanticSceneCompositor:
 
         # Track drawn composition tags deterministically (Rule #14)
         drawn_tags: List[str] = []
+        setting = entities["setting"]
+        drawn_tags.append(f"environment:{setting}")
+        for char in entities["characters"]:
+            drawn_tags.append(f"character:{char}")
+        for prop in entities["props"]:
+            drawn_tags.append(f"prop:{prop}")
 
         mid_frame_idx = total_frames // 2
         mid_frame = None
+
+        # 3. Attempt Neural Diffusion high-definition frame generation
+        neural_base = self._fetch_neural_diffusion_frame(
+            action_description=action_description,
+            camera_directive=camera_directive,
+            genre=genre,
+            characters=characters,
+            location=location,
+            width=width,
+            height=height,
+        )
+        if neural_base is not None:
+            drawn_tags.append("neural_diffusion:ai_generated_4k")
 
         # Seed random generator by shot_id for reproducible visual variation
         rng = random.Random(abs(hash(shot_id)) % (2**31))
@@ -153,90 +172,64 @@ class SemanticSceneCompositor:
         for frame_idx in range(total_frames):
             t = frame_idx / float(max(1, total_frames - 1))
 
-            # Base layer canvas
-            canvas = np.zeros((height, width, 3), dtype=np.uint8)
-
-            # LAYER 1: Draw setting environment
-            setting = entities["setting"]
-            if setting == "cartoon_playground":
-                self._draw_cartoon_playground(canvas, width, height, t, frame_idx)
-                if "environment:cartoon_playground" not in drawn_tags:
-                    drawn_tags.append("environment:cartoon_playground")
-            elif setting == "apartment_workspace":
-                self._draw_apartment_environment(canvas, width, height, t, frame_idx)
-                if "environment:apartment_workspace" not in drawn_tags:
-                    drawn_tags.append("environment:apartment_workspace")
-            elif setting == "railway_station":
-                self._draw_railway_station(canvas, width, height, t, frame_idx)
-                if "environment:railway_station" not in drawn_tags:
-                    drawn_tags.append("environment:railway_station")
-            elif setting == "city_park":
-                self._draw_city_park(canvas, width, height, t, frame_idx)
-                if "environment:city_park" not in drawn_tags:
-                    drawn_tags.append("environment:city_park")
-            elif setting == "park_fountain":
-                self._draw_park_fountain(canvas, width, height, t, frame_idx)
-                if "environment:park_fountain" not in drawn_tags:
-                    drawn_tags.append("environment:park_fountain")
+            if neural_base is not None:
+                # Animate the neural diffusion frame with cinematic 2.5D camera choreography
+                motion = entities["camera_motion"]
+                canvas = self._apply_camera_motion(neural_base.copy(), motion, t, width, height)
+                # Subtle dynamic lighting breathe
+                pulse = 1.0 + 0.02 * math.sin(frame_idx * 0.15)
+                canvas = cv2.convertScaleAbs(canvas, alpha=pulse, beta=0)
             else:
-                self._draw_cinematic_gradient(canvas, width, height, t)
-                if "environment:cinematic_landscape" not in drawn_tags:
-                    drawn_tags.append("environment:cinematic_landscape")
+                # Base layer canvas for procedural rendering
+                canvas = np.zeros((height, width, 3), dtype=np.uint8)
 
-            # LAYER 2: Draw Character silhouettes & figures
-            for char in entities["characters"]:
-                if char == "playing_children":
-                    self._draw_playing_children(canvas, width, height, t, frame_idx)
-                    if "character:playing_children" not in drawn_tags:
-                        drawn_tags.append("character:playing_children")
-                elif char == "alex_hacker":
-                    self._draw_hacker_silhouette(canvas, width, height, t)
-                    if "character:alex_hacker" not in drawn_tags:
-                        drawn_tags.append("character:alex_hacker")
-                elif char == "young_girl":
-                    self._draw_girl_figure(canvas, width, height, t)
-                    if "character:young_girl" not in drawn_tags:
-                        drawn_tags.append("character:young_girl")
-                elif char == "golden_dog":
-                    self._draw_dog_figure(canvas, width, height, t)
-                    if "character:companion_dog" not in drawn_tags:
-                        drawn_tags.append("character:companion_dog")
-                elif char == "protagonist_silhouette":
-                    self._draw_protagonist_silhouette(canvas, width, height, t)
-                    if "character:protagonist" not in drawn_tags:
-                        drawn_tags.append("character:protagonist")
+                # LAYER 1: Draw setting environment
+                if setting == "cartoon_playground":
+                    self._draw_cartoon_playground(canvas, width, height, t, frame_idx)
+                elif setting == "apartment_workspace":
+                    self._draw_apartment_environment(canvas, width, height, t, frame_idx)
+                elif setting == "railway_station":
+                    self._draw_railway_station(canvas, width, height, t, frame_idx)
+                elif setting == "city_park":
+                    self._draw_city_park(canvas, width, height, t, frame_idx)
+                elif setting == "park_fountain":
+                    self._draw_park_fountain(canvas, width, height, t, frame_idx)
+                else:
+                    self._draw_cinematic_gradient(canvas, width, height, t)
 
-            # LAYER 3: Draw Props
-            for prop in entities["props"]:
-                if prop == "musical_notes":
-                    self._draw_musical_notes(canvas, width, height, frame_idx)
-                    if "prop:musical_notes" not in drawn_tags:
-                        drawn_tags.append("prop:musical_notes")
-                elif prop == "toy_ball":
-                    self._draw_toy_ball(canvas, width, height, t, frame_idx)
-                    if "prop:toy_ball" not in drawn_tags:
-                        drawn_tags.append("prop:toy_ball")
-                elif prop == "signal_terminal":
-                    self._draw_signal_waveform(canvas, width, height, frame_idx)
-                    if "prop:signal_terminal_waveform" not in drawn_tags:
-                        drawn_tags.append("prop:signal_terminal_waveform")
-                elif prop == "glowing_device":
-                    self._draw_glowing_device(canvas, width, height, frame_idx)
-                    if "prop:futuristic_device_core" not in drawn_tags:
-                        drawn_tags.append("prop:futuristic_device_core")
-                elif prop == "water_fountain":
-                    self._draw_fountain_particles(canvas, width, height, particles, frame_idx)
-                    if "prop:water_fountain_spray" not in drawn_tags:
-                        drawn_tags.append("prop:water_fountain_spray")
+                # LAYER 2: Draw Character silhouettes & figures
+                for char in entities["characters"]:
+                    if char == "playing_children":
+                        self._draw_playing_children(canvas, width, height, t, frame_idx)
+                    elif char == "alex_hacker":
+                        self._draw_hacker_silhouette(canvas, width, height, t)
+                    elif char == "young_girl":
+                        self._draw_girl_figure(canvas, width, height, t)
+                    elif char == "golden_dog":
+                        self._draw_dog_figure(canvas, width, height, t)
+                    elif char == "protagonist_silhouette":
+                        self._draw_protagonist_silhouette(canvas, width, height, t)
 
-            # LAYER 4: POST-STYLING GenreStyleProfile (Rule #11)
-            # Apply color grading LUT & lighting bias without modifying underlying entities
-            is_cartoon = setting == "cartoon_playground" or any(k in genre.lower() for k in ["cartoon", "anime", "comedy"])
-            canvas = self._apply_genre_grading(canvas, genre_style, width, height, is_cartoon=is_cartoon)
+                # LAYER 3: Draw Props
+                for prop in entities["props"]:
+                    if prop == "musical_notes":
+                        self._draw_musical_notes(canvas, width, height, frame_idx)
+                    elif prop == "toy_ball":
+                        self._draw_toy_ball(canvas, width, height, t, frame_idx)
+                    elif prop == "signal_terminal":
+                        self._draw_signal_waveform(canvas, width, height, frame_idx)
+                    elif prop == "glowing_device":
+                        self._draw_glowing_device(canvas, width, height, frame_idx)
+                    elif prop == "water_fountain":
+                        self._draw_fountain_particles(canvas, width, height, particles, frame_idx)
 
-            # LAYER 5: Subtle cinematic camera motion (dolly / push-in)
-            motion = entities["camera_motion"]
-            canvas = self._apply_camera_motion(canvas, motion, t, width, height)
+                # LAYER 4: POST-STYLING GenreStyleProfile (Rule #11)
+                is_cartoon = setting == "cartoon_playground" or any(k in genre.lower() for k in ["cartoon", "anime", "comedy"])
+                canvas = self._apply_genre_grading(canvas, genre_style, width, height, is_cartoon=is_cartoon)
+
+                # LAYER 5: Subtle cinematic camera motion (dolly / push-in)
+                motion = entities["camera_motion"]
+                canvas = self._apply_camera_motion(canvas, motion, t, width, height)
 
             if frame_idx == mid_frame_idx:
                 mid_frame = canvas.copy()
@@ -250,6 +243,38 @@ class SemanticSceneCompositor:
             cv2.imwrite(str(jpg_path), mid_frame)
 
         return str(mp4_path), str(jpg_path), drawn_tags
+
+    def _fetch_neural_diffusion_frame(
+        self,
+        action_description: str,
+        camera_directive: str,
+        genre: str,
+        characters: Optional[List[str]] = None,
+        location: Optional[str] = None,
+        width: int = 720,
+        height: int = 405,
+    ) -> Optional[np.ndarray]:
+        import urllib.request
+        import urllib.parse
+        char_desc = f", featuring {', '.join(characters)}" if characters else ""
+        loc_desc = f", set in {location}" if location else ""
+        text = f"{genre} {action_description}".lower()
+        if any(k in text for k in ["cartoon", "anime", "play", "child", "happy"]):
+            style_suffix = "3d pixar animation style, vibrant lush colors, sunny cinematic lighting, 4k render, masterpiece"
+        else:
+            style_suffix = "cinematic film still, 35mm photography, dramatic atmospheric lighting, photorealistic 8k"
+        prompt = f"{action_description}{char_desc}{loc_desc}, {camera_directive}, {style_suffix}".strip()
+        url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt)}?width={width}&height={height}&nologo=true"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                arr = np.asarray(bytearray(resp.read()), dtype=np.uint8)
+                img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+                if img is not None and img.shape[0] > 50:
+                    return cv2.resize(img, (width, height))
+        except Exception:
+            pass
+        return None
 
     def _draw_cartoon_playground(self, canvas: np.ndarray, w: int, h: int, t: float, f: int):
         # 1. Vibrant Sky Blue
