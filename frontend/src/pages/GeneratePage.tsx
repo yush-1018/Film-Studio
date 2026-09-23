@@ -42,11 +42,13 @@ export const GeneratePage: React.FC<GeneratePageProps> = ({
     '5 min': 300,
   };
   const durationSec = durationMap[project.duration || '1 min'] || 60;
-  const genreSlug = (project.genre || 'scifi').toLowerCase();
+
+  const activeMasterUrl = project.masterVideoUrl || (project as any).master_video_url || '';
+  const activeMasterThumb = project.masterThumbnailUrl || (project as any).master_thumbnail_url || '';
 
   const [masterFilm, setMasterFilm] = useState({
-    videoUrl: project.masterVideoUrl || `/generated_videos/master_demo_genre_${genreSlug}_${genreSlug}_15s.mp4`,
-    thumbnailUrl: project.masterThumbnailUrl || `/generated_videos/master_demo_genre_${genreSlug}_${genreSlug}_15s.jpg`,
+    videoUrl: activeMasterUrl,
+    thumbnailUrl: activeMasterThumb,
     title: project.title ? `${project.title} — Full Feature Film` : 'Cinematic Master Film',
     duration: `${durationSec}.0s (${Math.floor(durationSec / 60)}:${String(durationSec % 60).padStart(2, '0')})`,
     model: 'Google Veo 3 (Multi-Act Diffusion)',
@@ -56,10 +58,12 @@ export const GeneratePage: React.FC<GeneratePageProps> = ({
 
   // Watch for changes in project.masterVideoUrl
   useEffect(() => {
-    if (project.masterVideoUrl) {
+    const vUrl = project.masterVideoUrl || (project as any).master_video_url;
+    const tUrl = project.masterThumbnailUrl || (project as any).master_thumbnail_url;
+    if (vUrl) {
       setMasterFilm({
-        videoUrl: project.masterVideoUrl,
-        thumbnailUrl: project.masterThumbnailUrl || '/generated_videos/master_spaceship_earth_to_moon_60s.jpg',
+        videoUrl: vUrl,
+        thumbnailUrl: tUrl || '',
         title: project.title ? `${project.title} — Full Feature Film` : 'Cinematic Master Film',
         duration: `${durationSec}.0s (${Math.floor(durationSec / 60)}:${String(durationSec % 60).padStart(2, '0')})`,
         model: 'Google Veo 3 (Multi-Act Diffusion)',
@@ -68,7 +72,7 @@ export const GeneratePage: React.FC<GeneratePageProps> = ({
       });
       setViewMode('master');
     }
-  }, [project.masterVideoUrl, project.masterThumbnailUrl, project.title]);
+  }, [project.masterVideoUrl, (project as any).master_video_url, project.masterThumbnailUrl, (project as any).master_thumbnail_url, project.title]);
 
   const getInitialClips = () => {
     const allShots = project.scenes?.flatMap((sc) => sc.shots) || [];

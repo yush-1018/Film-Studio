@@ -87,6 +87,20 @@ export const createProject = async (
   }
 };
 
+function formatProjectDoc(doc: any) {
+  if (!doc) return doc;
+  const raw = doc.toObject ? doc.toObject() : { ...doc };
+  const masterUrl = raw.master_video_url || raw.masterVideoUrl;
+  const masterThumb = raw.master_thumbnail_url || raw.masterThumbnailUrl;
+  return {
+    ...raw,
+    masterVideoUrl: masterUrl,
+    master_video_url: masterUrl,
+    masterThumbnailUrl: masterThumb,
+    master_thumbnail_url: masterThumb,
+  };
+}
+
 export const listProjects = async (
   req: Request,
   res: Response,
@@ -99,7 +113,7 @@ export const listProjects = async (
 
     res.status(200).json({
       success: true,
-      data: projects,
+      data: projects.map(formatProjectDoc),
       total: projects.length,
     });
   } catch (error: any) {
@@ -147,7 +161,7 @@ export const getProjectById = async (
 
     res.status(200).json({
       success: true,
-      data: project,
+      data: formatProjectDoc(project),
     });
   } catch (error: any) {
     if (error?.code === 'DATABASE_UNAVAILABLE' || error?.status === 503) {
@@ -199,7 +213,7 @@ export const updateProject = async (
 
     res.status(200).json({
       success: true,
-      data: updated,
+      data: formatProjectDoc(updated),
     });
   } catch (error) {
     next(error);

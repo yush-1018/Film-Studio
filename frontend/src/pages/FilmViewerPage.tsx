@@ -8,8 +8,8 @@ interface FilmViewerPageProps {
 }
 
 export const FilmViewerPage: React.FC<FilmViewerPageProps> = ({ project }) => {
-  // Canonical sample fallback video if not yet written
-  const videoSrc = project.masterVideoUrl || '/generated_videos/master_spaceship_earth_to_moon_60s.mp4';
+  // Authentic master film video URL from backend
+  const videoSrc = project.masterVideoUrl || (project as any).master_video_url;
   const durationSec = project.preferences?.durationSeconds || 120;
   const minutes = Math.floor(durationSec / 60);
   const seconds = durationSec % 60;
@@ -30,27 +30,31 @@ export const FilmViewerPage: React.FC<FilmViewerPageProps> = ({ project }) => {
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
-          <a
-            href={videoSrc}
-            download={`${project.title.replace(/\s+/g, '_')}_Master.mp4`}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: '#1E1E26',
-              color: '#FFFFFF',
-              border: '1px solid #323240',
-              borderRadius: '8px',
-              padding: '10px 16px',
-              fontSize: '13px',
-              fontWeight: 600,
-              textDecoration: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <Download size={16} />
-            Export MP4
-          </a>
+          {videoSrc ? (
+            <a
+              href={videoSrc}
+              download={`${project.title.replace(/\s+/g, '_')}_Master.mp4`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: '#1E1E26',
+                color: '#FFFFFF',
+                border: '1px solid #323240',
+                borderRadius: '8px',
+                padding: '10px 16px',
+                fontSize: '13px',
+                fontWeight: 600,
+                textDecoration: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <Download size={16} />
+              Export MP4
+            </a>
+          ) : (
+            <span style={{ fontSize: '13px', color: '#8E8E9F', alignSelf: 'center' }}>Rendering in progress...</span>
+          )}
         </div>
       </div>
 
@@ -65,14 +69,24 @@ export const FilmViewerPage: React.FC<FilmViewerPageProps> = ({ project }) => {
         boxShadow: '0 12px 40px rgba(0, 0, 0, 0.75)',
         marginBottom: '32px',
         border: '1px solid #22222C',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}>
-        <video
-          src={videoSrc}
-          controls
-          autoPlay
-          playsInline
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-        />
+        {videoSrc ? (
+          <video
+            src={videoSrc}
+            controls
+            autoPlay
+            playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
+        ) : (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#8E8E9F' }}>
+            <p style={{ fontSize: '16px', fontWeight: 600, color: '#F1F1F4', marginBottom: '8px' }}>Rendering in Progress</p>
+            <p style={{ fontSize: '13px' }}>The autonomous pipeline is generating your film. It will appear here upon completion.</p>
+          </div>
+        )}
       </div>
 
       {/* Story Fidelity Gate Scorecard (Section 10 & 12.4) */}

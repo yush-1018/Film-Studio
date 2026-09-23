@@ -33,21 +33,28 @@ class EntityVisualExtractor:
         }
 
         # Setting extraction
-        if any(k in text for k in ["station", "railway", "train", "platform", "tracks"]):
-            entities["setting"] = "railway_station"
+        if any(k in text for k in ["ground", "playground", "park", "trees", "lawn", "grass", "grove", "yard", "outdoor", "field", "garden", "play"]):
+            if any(k in text for k in ["cartoon", "anime", "child", "happy", "playground", "tune", "play"]):
+                entities["setting"] = "cartoon_playground"
+            else:
+                entities["setting"] = "city_park"
         elif any(k in text for k in ["fountain", "stone fountain"]):
             entities["setting"] = "park_fountain"
-        elif any(k in text for k in ["park", "trees", "lawn", "grass", "grove"]):
-            entities["setting"] = "city_park"
+        elif any(k in text for k in ["station", "railway", "train", "platform", "tracks"]):
+            entities["setting"] = "railway_station"
         elif any(k in text for k in ["apartment", "desk", "computer", "workspace", "terminal"]):
             entities["setting"] = "apartment_workspace"
+        elif any(k in text for k in ["cartoon", "animation"]):
+            entities["setting"] = "cartoon_playground"
         else:
             entities["setting"] = "cinematic_environment"
 
         # Character extraction
+        if any(k in text for k in ["child", "children", "kid", "kids", "boy", "girl"]):
+            entities["characters"].append("playing_children")
         if "alex" in text or "hacker" in text:
             entities["characters"].append("alex_hacker")
-        if "girl" in text or "child" in text or "lily" in text:
+        if "lily" in text and "playing_children" not in entities["characters"]:
             entities["characters"].append("young_girl")
         if "dog" in text or "buddy" in text or "retriever" in text:
             entities["characters"].append("golden_dog")
@@ -55,14 +62,16 @@ class EntityVisualExtractor:
             entities["characters"].append("protagonist_silhouette")
 
         # Props extraction
+        if any(k in text for k in ["tune", "music", "song", "musical", "melody", "happy"]):
+            entities["props"].append("musical_notes")
+        if any(k in text for k in ["ball", "toy", "play", "game", "ground"]):
+            entities["props"].append("toy_ball")
         if any(k in text for k in ["signal", "waveform", "monitor", "laptop", "screen"]):
             entities["props"].append("signal_terminal")
         if any(k in text for k in ["device", "artifact", "core", "futuristic"]):
             entities["props"].append("glowing_device")
         if any(k in text for k in ["fountain", "water", "spray"]):
             entities["props"].append("water_fountain")
-        if any(k in text for k in ["ball", "red ball"]):
-            entities["props"].append("toy_ball")
 
         # Camera trajectory
         if "pan" in text:
@@ -148,7 +157,11 @@ class SemanticSceneCompositor:
 
             # LAYER 1: Draw setting environment
             setting = entities["setting"]
-            if setting == "apartment_workspace":
+            if setting == "cartoon_playground":
+                self._draw_cartoon_playground(canvas, width, height, t, frame_idx)
+                if "environment:cartoon_playground" not in drawn_tags:
+                    drawn_tags.append("environment:cartoon_playground")
+            elif setting == "apartment_workspace":
                 self._draw_apartment_environment(canvas, width, height, t, frame_idx)
                 if "environment:apartment_workspace" not in drawn_tags:
                     drawn_tags.append("environment:apartment_workspace")
@@ -171,7 +184,11 @@ class SemanticSceneCompositor:
 
             # LAYER 2: Draw Character silhouettes & figures
             for char in entities["characters"]:
-                if char == "alex_hacker":
+                if char == "playing_children":
+                    self._draw_playing_children(canvas, width, height, t, frame_idx)
+                    if "character:playing_children" not in drawn_tags:
+                        drawn_tags.append("character:playing_children")
+                elif char == "alex_hacker":
                     self._draw_hacker_silhouette(canvas, width, height, t)
                     if "character:alex_hacker" not in drawn_tags:
                         drawn_tags.append("character:alex_hacker")
@@ -190,7 +207,15 @@ class SemanticSceneCompositor:
 
             # LAYER 3: Draw Props
             for prop in entities["props"]:
-                if prop == "signal_terminal":
+                if prop == "musical_notes":
+                    self._draw_musical_notes(canvas, width, height, frame_idx)
+                    if "prop:musical_notes" not in drawn_tags:
+                        drawn_tags.append("prop:musical_notes")
+                elif prop == "toy_ball":
+                    self._draw_toy_ball(canvas, width, height, t, frame_idx)
+                    if "prop:toy_ball" not in drawn_tags:
+                        drawn_tags.append("prop:toy_ball")
+                elif prop == "signal_terminal":
                     self._draw_signal_waveform(canvas, width, height, frame_idx)
                     if "prop:signal_terminal_waveform" not in drawn_tags:
                         drawn_tags.append("prop:signal_terminal_waveform")
@@ -205,7 +230,8 @@ class SemanticSceneCompositor:
 
             # LAYER 4: POST-STYLING GenreStyleProfile (Rule #11)
             # Apply color grading LUT & lighting bias without modifying underlying entities
-            canvas = self._apply_genre_grading(canvas, genre_style, width, height)
+            is_cartoon = setting == "cartoon_playground" or any(k in genre.lower() for k in ["cartoon", "anime", "comedy"])
+            canvas = self._apply_genre_grading(canvas, genre_style, width, height, is_cartoon=is_cartoon)
 
             # LAYER 5: Subtle cinematic camera motion (dolly / push-in)
             motion = entities["camera_motion"]
@@ -223,6 +249,92 @@ class SemanticSceneCompositor:
             cv2.imwrite(str(jpg_path), mid_frame)
 
         return str(mp4_path), str(jpg_path), drawn_tags
+
+    def _draw_cartoon_playground(self, canvas: np.ndarray, w: int, h: int, t: float, f: int):
+        # 1. Vibrant Sky Blue
+        canvas[:int(h * 0.58), :] = (245, 200, 135) # BGR sky blue
+        # 2. Glowing Golden Sun with rotating rays
+        sun_x, sun_y = int(w * 0.85), int(h * 0.2)
+        cv2.circle(canvas, (sun_x, sun_y), 38, (50, 220, 255), -1)
+        ray_rot = (f * 1.5) % 360
+        for a in range(0, 360, 45):
+            rad = math.radians(a + ray_rot)
+            x1 = int(sun_x + 44 * math.cos(rad))
+            y1 = int(sun_y + 44 * math.sin(rad))
+            x2 = int(sun_x + 60 * math.cos(rad))
+            y2 = int(sun_y + 60 * math.sin(rad))
+            cv2.line(canvas, (x1, y1), (x2, y2), (50, 220, 255), 3)
+        # 3. Fluffy White Floating Clouds
+        cloud_drift = int(t * 30)
+        for cx, cy in [(int(w * 0.2) + cloud_drift, int(h * 0.18)), (int(w * 0.52) + cloud_drift, int(h * 0.24))]:
+            cv2.circle(canvas, (cx, cy), 28, (255, 255, 255), -1)
+            cv2.circle(canvas, (cx - 22, cy + 4), 20, (255, 255, 255), -1)
+            cv2.circle(canvas, (cx + 22, cy + 4), 22, (255, 255, 255), -1)
+            cv2.ellipse(canvas, (cx, cy + 10), (38, 14), 0, 0, 360, (255, 255, 255), -1)
+        # 4. Lush Green Grass Ground
+        cv2.rectangle(canvas, (0, int(h * 0.58)), (w, h), (65, 195, 80), -1)
+        # Grass tufts
+        for gx in range(40, w, 90):
+            cv2.line(canvas, (gx, int(h * 0.58)), (gx - 6, int(h * 0.58) - 10), (45, 160, 60), 2)
+            cv2.line(canvas, (gx, int(h * 0.58)), (gx + 6, int(h * 0.58) - 10), (45, 160, 60), 2)
+        # 5. Playground Slide on left
+        slide_x = int(w * 0.12)
+        cv2.rectangle(canvas, (slide_x, int(h * 0.42)), (slide_x + 12, int(h * 0.75)), (180, 50, 40), -1)
+        pts_slide = np.array([[slide_x + 12, int(h * 0.46)], [slide_x + 95, int(h * 0.75)], [slide_x + 85, int(h * 0.75)], [slide_x + 12, int(h * 0.52)]], np.int32)
+        cv2.fillPoly(canvas, [pts_slide], (40, 210, 240)) # Yellow slide
+
+    def _draw_playing_children(self, canvas: np.ndarray, w: int, h: int, t: float, f: int):
+        # Child 1: Boy running happily across ground
+        run_bob = int(6 * math.sin(f * 0.4))
+        bx = int(w * 0.38 + 30 * math.sin(t * 3.0))
+        by = int(h * 0.68) + run_bob
+        cv2.circle(canvas, (bx, by - 42), 16, (140, 175, 225), -1) # face
+        cv2.rectangle(canvas, (bx - 14, by - 26), (bx + 14, by + 4), (220, 110, 30), -1) # blue shirt
+        cv2.rectangle(canvas, (bx - 12, by + 4), (bx + 12, by + 22), (40, 80, 220), -1) # red shorts
+        leg_swing = int(12 * math.sin(f * 0.4))
+        cv2.line(canvas, (bx - 8, by + 22), (bx - 16 - leg_swing, by + 40), (140, 175, 225), 5) # legs
+        cv2.line(canvas, (bx + 8, by + 22), (bx + 16 + leg_swing, by + 40), (140, 175, 225), 5)
+        cv2.line(canvas, (bx - 14, by - 16), (bx - 28, by - 28 + run_bob), (140, 175, 225), 4) # arms
+        cv2.line(canvas, (bx + 14, by - 16), (bx + 28, by - 10 - run_bob), (140, 175, 225), 4)
+
+        # Child 2: Girl jumping with joy
+        jump_bob = int(14 * abs(math.sin(f * 0.35)))
+        gx = int(w * 0.58 + 15 * math.cos(t * 2.5))
+        gy = int(h * 0.66) - jump_bob
+        cv2.circle(canvas, (gx, gy - 40), 15, (140, 175, 225), -1) # face
+        cv2.circle(canvas, (gx - 12, gy - 36), 8, (30, 60, 110), -1) # pigtails
+        cv2.circle(canvas, (gx + 12, gy - 36), 8, (30, 60, 110), -1)
+        pts_dress = np.array([[gx - 16, gy + 12], [gx + 16, gy + 12], [gx + 8, gy - 24], [gx - 8, gy - 24]], np.int32)
+        cv2.fillPoly(canvas, [pts_dress], (180, 60, 220)) # pink dress
+        cv2.line(canvas, (gx - 8, gy + 12), (gx - 14, gy + 32), (140, 175, 225), 5)
+        cv2.line(canvas, (gx + 8, gy + 12), (gx + 14, gy + 32), (140, 175, 225), 5)
+        cv2.line(canvas, (gx - 10, gy - 16), (gx - 26, gy - 32 - jump_bob // 2), (140, 175, 225), 4)
+        cv2.line(canvas, (gx + 10, gy - 16), (gx + 26, gy - 32 - jump_bob // 2), (140, 175, 225), 4)
+
+    def _draw_toy_ball(self, canvas: np.ndarray, w: int, h: int, t: float, f: int):
+        bounce_y = int(35 * abs(math.sin(f * 0.3)))
+        ball_x = int(w * 0.48 + 20 * math.sin(t * 2.0))
+        ball_y = int(h * 0.74) - bounce_y
+        # Shadow
+        shadow_w = max(4, int(15 - bounce_y * 0.2))
+        cv2.ellipse(canvas, (ball_x, int(h * 0.76)), (shadow_w, 4), 0, 0, 360, (40, 140, 50), -1)
+        # Red ball with yellow center
+        cv2.circle(canvas, (ball_x, ball_y), 15, (40, 60, 230), -1)
+        cv2.circle(canvas, (ball_x, ball_y), 8, (50, 220, 255), -1)
+
+    def _draw_musical_notes(self, canvas: np.ndarray, w: int, h: int, f: int):
+        for idx, (base_x, base_y) in enumerate([
+            (int(w * 0.36), int(h * 0.36)),
+            (int(w * 0.48), int(h * 0.28)),
+            (int(w * 0.64), int(h * 0.32)),
+        ]):
+            drift = (f * 2 + idx * 25) % 120
+            nx = int(base_x + 10 * math.sin((f + idx * 15) * 0.1))
+            ny = base_y - drift
+            if ny > int(h * 0.08):
+                cv2.circle(canvas, (nx, ny), 5, (30, 30, 40), -1)
+                cv2.line(canvas, (nx + 4, ny), (nx + 4, ny - 16), (30, 30, 40), 2)
+                cv2.line(canvas, (nx + 4, ny - 16), (nx + 12, ny - 13), (30, 30, 40), 2)
 
     def _draw_apartment_environment(self, canvas: np.ndarray, w: int, h: int, t: float, f: int):
         # Room walls with dark ambient gradient
@@ -366,7 +478,13 @@ class SemanticSceneCompositor:
                 p[1] = cy - 30 + random.uniform(-10, 0)
             cv2.circle(canvas, (int(p[0]), int(p[1])), int(p[2]), (240, 210, 160), -1)
 
-    def _apply_genre_grading(self, canvas: np.ndarray, genre_style: GenreStyleProfile, w: int, h: int) -> np.ndarray:
+    def _apply_genre_grading(self, canvas: np.ndarray, genre_style: GenreStyleProfile, w: int, h: int, is_cartoon: bool = False) -> np.ndarray:
+        if is_cartoon:
+            # High saturation, cheerful warm sunlight, cartoon vibrancy
+            hsv = cv2.cvtColor(canvas, cv2.COLOR_BGR2HSV).astype(np.float32)
+            hsv[:, :, 1] = np.clip(hsv[:, :, 1] * 1.25, 0, 255) # boost saturation
+            hsv[:, :, 2] = np.clip(hsv[:, :, 2] * 1.08, 0, 255) # boost brightness
+            return cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
         g = genre_style.genre.lower()
         if "horror" in g:
             # Desaturate + dark shadows + red emphasis
