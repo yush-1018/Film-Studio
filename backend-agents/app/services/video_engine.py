@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Tuple, Dict, Any, Optional, List
 from app.models.contracts import GenreStyleProfile
 from app.services.prompt_builder import ContextualPromptBuilder
+from app.services.sound_engine import ProceduralSoundEngine
 
 
 class EntityVisualExtractor:
@@ -594,7 +595,8 @@ class LocalVideoEngine:
         fps = 24
         w, h = 720, 405
         fourcc = cv2.VideoWriter_fourcc(*"avc1")
-        writer = cv2.VideoWriter(str(master_path), fourcc, fps, (w, h))
+        raw_master_path = self.output_dir / f"raw_{master_mp4}"
+        writer = cv2.VideoWriter(str(raw_master_path), fourcc, fps, (w, h))
 
         all_drawn_tags: List[str] = []
         first_thumbnail = None
@@ -616,6 +618,46 @@ class LocalVideoEngine:
                     all_drawn_tags.append(tag)
 
         writer.release()
+
+        # 1. Synthesize authentic soundtrack for the master film
+        audio_wav_path = self.output_dir / f"audio_{clean_proj}.wav"
+        ProceduralSoundEngine.synthesize_soundtrack(
+            output_path=audio_wav_path,
+            duration_seconds=target_duration,
+            genre=genre,
+            title=title,
+            content_text=f"{title} {' '.join(all_drawn_tags)}",
+        )
+
+        # 2. Mux video and soundtrack into final master MP4 with AAC audio track
+        mux_success = False
+        try:
+            import subprocess
+            import imageio_ffmpeg
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            cmd = [
+                ffmpeg_exe, "-y",
+                "-i", str(raw_master_path),
+                "-i", str(audio_wav_path),
+                "-c:v", "copy",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-shortest",
+                str(master_path),
+            ]
+            res = subprocess.run(cmd, capture_output=True)
+            if res.returncode == 0 and os.path.exists(master_path):
+                mux_success = True
+                if os.path.exists(raw_master_path):
+                    os.remove(raw_master_path)
+        except Exception as e:
+            print(f"[VideoEngine] FFmpeg audio mux warning: {e}")
+
+        if not mux_success:
+            if os.path.exists(raw_master_path):
+                if os.path.exists(master_path):
+                    os.remove(master_path)
+                os.rename(raw_master_path, master_path)
 
         if first_thumbnail is not None:
             cv2.imwrite(str(master_jpg_path), first_thumbnail)
