@@ -253,7 +253,15 @@ export const triggerWorkflow = async (
 ): Promise<void> => {
   try {
     assertDbHealthy();
-    const validatedPayload = TriggerWorkflowRequestSchema.parse(req.body);
+    const rawPayload = {
+      projectId: req.body.projectId || req.params.id,
+      workflowType: req.body.workflowType || 'full_pipeline',
+      ...req.body,
+    };
+    if (req.params.id && !req.body.projectId) {
+      rawPayload.projectId = req.params.id;
+    }
+    const validatedPayload = TriggerWorkflowRequestSchema.parse(rawPayload);
 
     const project = await ProjectModel.findOne({ id: validatedPayload.projectId });
     if (!project) {

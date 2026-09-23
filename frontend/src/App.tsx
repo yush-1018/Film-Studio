@@ -96,11 +96,14 @@ export default function App() {
         setActiveStage(`Post-Processing: Extracting authentic video frame thumbnail & timeline takes...`);
       }, 1400);
 
+      const projId = project.id || `proj_${Date.now()}`;
       const response = await triggerWorkflow({
-        projectId: project.id,
+        projectId: projId,
         workflowType: 'scene_synthesis',
         parameters: {
           title: prompt.length > 30 ? prompt.slice(0, 30) + '...' : prompt,
+          content: prompt,
+          logline: prompt,
           genre: genre,
           duration_seconds: durSec,
           shots: [
