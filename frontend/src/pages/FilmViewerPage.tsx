@@ -8,8 +8,11 @@ interface FilmViewerPageProps {
 }
 
 export const FilmViewerPage: React.FC<FilmViewerPageProps> = ({ project }) => {
-  // Authentic master film video URL from backend
-  const videoSrc = project.masterVideoUrl || (project as any).master_video_url;
+  // Authentic master film video URL from backend with cache-busting
+  const rawVideoSrc = project.masterVideoUrl || (project as any).master_video_url;
+  const videoSrc = rawVideoSrc
+    ? (rawVideoSrc.includes('?') ? rawVideoSrc : `${rawVideoSrc}?t=${project.updatedAt || Date.now()}`)
+    : '';
   const durationSec = project.preferences?.durationSeconds || 120;
   const minutes = Math.floor(durationSec / 60);
   const seconds = durationSec % 60;
@@ -75,6 +78,7 @@ export const FilmViewerPage: React.FC<FilmViewerPageProps> = ({ project }) => {
       }}>
         {videoSrc ? (
           <video
+            key={videoSrc}
             src={videoSrc}
             controls
             autoPlay

@@ -22,6 +22,9 @@ export interface WorkflowRunResponse {
   runId?: string;
   project_id?: string;
   status: string;
+  progress?: number;
+  currentStage?: string;
+  current_stage?: string;
   completed_nodes?: string[];
   completedNodes?: string[];
   intermediate_artifacts?: Record<string, any>;

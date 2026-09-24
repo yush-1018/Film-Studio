@@ -17,7 +17,7 @@ import { GeneratePage } from './pages/GeneratePage';
 
 import { initialProject } from './data/mockData';
 import { mapAgentScenesToFrontend } from './api/adapters';
-import { triggerWorkflow } from './api/apiClient';
+import { triggerWorkflow, getWorkflowState } from './api/apiClient';
 import { NavigationTab, Shot, Project } from './types/filmStudio';
 
 export default function App() {
@@ -80,22 +80,12 @@ export default function App() {
   // Triggered directly from the persistent Right Agent Prompting Panel (before or AFTER video generation)
   const handleAgentPrompt = async (prompt: string, genre: string, duration: string) => {
     setIsGenerating(true);
-    setGenerationProgress(20);
-    setActiveStage(`Visual Generation Agent: Processing prompt for "${genre}" film synthesis...`);
+    setGenerationProgress(15);
+    setActiveStage(`Visual Generation Agent: Initiating neural multi-act synthesis for "${genre}" film...`);
 
     const durSec = duration === '5 min' ? 300 : duration === '2 min' ? 120 : 60;
 
     try {
-      setTimeout(() => {
-        setGenerationProgress(55);
-        setActiveStage(`Neural Diffusion: Synthesizing ${genre} multi-frame optical flow & lighting...`);
-      }, 700);
-
-      setTimeout(() => {
-        setGenerationProgress(85);
-        setActiveStage(`Post-Processing: Extracting authentic video frame thumbnail & timeline takes...`);
-      }, 1400);
-
       const projId = project.id || `proj_${Date.now()}`;
       const response = await triggerWorkflow({
         projectId: projId,
@@ -117,7 +107,7 @@ export default function App() {
             {
               id: `take_2`,
               shot_number: 'Part 2',
-              action_description: `Escalating ${genre.toLowerCase()} action & narrative development`,
+              action_description: `Escalating ${genre.toLowerCase()} narrative development`,
               camera_directive: 'Medium tracking shot, high contrast shadows',
               duration: durSec / 3,
             },
@@ -133,10 +123,43 @@ export default function App() {
         interruptOnHumanApproval: false,
       });
 
-      const resResult = response?.result;
-      const masterUrl = resResult?.master_video_url;
-      const masterThumb = resResult?.master_thumbnail_url;
+      const runId = response?.runId || response?.run_id;
+      let finalData: any = response;
+
+      if (runId) {
+        // Poll for background pipeline execution to complete
+        for (let i = 0; i < 45; i++) {
+          await new Promise((r) => setTimeout(r, 1500));
+          try {
+            const state = await getWorkflowState(runId);
+            if (state) {
+              const prog = Math.min(95, Math.max(25, state.progress || (i + 1) * 3));
+              setGenerationProgress(prog);
+              if (state.currentStage) {
+                setActiveStage(`Neural Studio: Stage "${state.currentStage}" in progress...`);
+              }
+              if (state.status === 'completed' || state.status === 'failed') {
+                finalData = state;
+                break;
+              }
+            }
+          } catch {
+            // keep polling
+          }
+        }
+      }
+
+      // Extract fresh master video and thumbnail URLs
+      const resResult = finalData?.result || response?.result;
+      const artifacts = finalData?.intermediateArtifacts || finalData?.intermediate_artifacts || {};
+      const rawMasterUrl = resResult?.master_video_url || artifacts?.master_video_url;
+      const rawMasterThumb = resResult?.master_thumbnail_url || artifacts?.master_thumbnail_url;
       const renderedShots = resResult?.rendered_shots;
+
+      // Add cache-busting timestamp so browser never displays old cached MP4
+      const timestamp = Date.now();
+      const masterUrl = rawMasterUrl ? (rawMasterUrl.includes('?') ? rawMasterUrl : `${rawMasterUrl}?t=${timestamp}`) : '';
+      const masterThumb = rawMasterThumb ? (rawMasterThumb.includes('?') ? rawMasterThumb : `${rawMasterThumb}?t=${timestamp}`) : '';
 
       setProject((prev) => {
         const updatedScenes = [...(prev.scenes || [])];
@@ -157,8 +180,8 @@ export default function App() {
               strategyReason: 'Synthesized directly from user prompt',
               recommendedModel: rs.model_used || 'Google Veo 3',
               estimatedCost: 18,
-              thumbnailUrl: rs.thumbnail_url,
-              videoUrl: rs.video_url,
+              thumbnailUrl: rs.thumbnail_url ? `${rs.thumbnail_url}?t=${timestamp}` : '',
+              videoUrl: rs.video_url ? `${rs.video_url}?t=${timestamp}` : '',
               thumbnailGradient: 'linear-gradient(135deg, #18181b 0%, #312e81 100%)',
               continuityScore: 98,
               motionIntensity: 'high' as const,
@@ -179,7 +202,7 @@ export default function App() {
       });
 
       setGenerationProgress(100);
-      setActiveStage(`✓ Video generated in center canvas! You can prompt again below.`);
+      setActiveStage(`✓ 1-Minute Film Generated! Ready to play in center canvas.`);
       setCurrentTab('generate');
     } catch (err) {
       console.error('Agent prompt error:', err);

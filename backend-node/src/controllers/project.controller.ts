@@ -379,19 +379,29 @@ export const getWorkflowStatus = async (
     // Check MongoDB first for persistent job checkpoint (Rule #10)
     try {
       assertDbHealthy();
-      const dbJob = await GenerationJobModel.findOne({ jobId: runId });
+      const dbJob = await GenerationJobModel.findOne({
+        $or: [{ jobId: runId }, { job_id: runId }],
+      });
       if (dbJob) {
+        const artifacts = dbJob.intermediateArtifacts || (dbJob as any).intermediate_artifacts || {};
         res.status(200).json({
           success: true,
           data: {
-            runId: dbJob.jobId,
-            projectId: dbJob.projectId,
-            currentStage: dbJob.currentStage,
+            runId: dbJob.jobId || (dbJob as any).job_id,
+            projectId: dbJob.projectId || (dbJob as any).project_id,
+            status: dbJob.currentStage === 'completed' ? 'completed' : dbJob.currentStage === 'failed' ? 'failed' : 'running',
+            currentStage: dbJob.currentStage || (dbJob as any).current_stage,
             progress: dbJob.progress,
-            stageResults: dbJob.stageResults,
+            stageResults: dbJob.stageResults || (dbJob as any).stage_results,
             costUsed: dbJob.costUsed,
             costBudget: dbJob.costBudget,
             errorMessage: dbJob.errorMessage,
+            intermediateArtifacts: artifacts,
+            intermediate_artifacts: artifacts,
+            result: (dbJob as any).result || {
+              master_video_url: artifacts.master_video_url,
+              fidelity_score: artifacts.fidelity_score,
+            },
           },
         });
         return;
