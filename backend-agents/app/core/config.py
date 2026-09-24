@@ -19,8 +19,11 @@ class Settings(BaseSettings):
     # API Keys for Production Providers (Optional in Mock mode)
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
-    ELEVENLABS_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    GOOGLE_VEO_API_KEY: str = ""
+    KLING_API_KEY: str = ""
     RUNWAY_API_KEY: str = ""
+    ELEVENLABS_API_KEY: str = ""
     STABILITY_API_KEY: str = ""
 
     # S3 Storage Configuration

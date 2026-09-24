@@ -1,4 +1,4 @@
-from typing import Dict, Type
+from typing import Dict, Type, Optional
 from app.core.config import settings
 from app.providers.base import (
     BaseImageAdapter,
@@ -9,6 +9,10 @@ from app.providers.base import (
 )
 from app.providers.local_video_adapter import LocalVideoAdapter, ExternalVideoAdapter
 from app.providers.gemini_adapter import GeminiLLMAdapter
+from app.providers.veo_adapter import GoogleVeoAdapter
+from app.providers.kling_adapter import KlingVideoAdapter
+from app.providers.runway_adapter import RunwayVideoAdapter
+from app.providers.fallback import ResilientVideoAdapter
 from app.providers.mock_adapters import (
     MockImageAdapter,
     MockLLMAdapter,
@@ -16,6 +20,27 @@ from app.providers.mock_adapters import (
     MockTTSAdapter,
     MockVideoAdapter,
 )
+
+
+def get_video_provider_chain() -> ResilientVideoAdapter:
+    """
+    Configures priority chain: Google Veo 3.1 -> Kling 3.0 -> Runway Gen-4.5 -> Local Semantic Compositor
+    """
+    adapters = []
+
+    if settings.GOOGLE_VEO_API_KEY:
+        adapters.append(GoogleVeoAdapter(api_key=settings.GOOGLE_VEO_API_KEY))
+
+    if settings.KLING_API_KEY:
+        adapters.append(KlingVideoAdapter(api_key=settings.KLING_API_KEY))
+
+    if settings.RUNWAY_API_KEY:
+        adapters.append(RunwayVideoAdapter(api_key=settings.RUNWAY_API_KEY))
+
+    # Always add LocalVideoAdapter as resilient safety net
+    adapters.append(LocalVideoAdapter())
+
+    return ResilientVideoAdapter(adapters=adapters)
 
 
 class ProviderRegistry:
@@ -30,7 +55,14 @@ class ProviderRegistry:
         self._stt_providers: Dict[str, Type[BaseSTTAdapter]] = {"mock": MockSTTAdapter}
         self._tts_providers: Dict[str, Type[BaseTTSAdapter]] = {"mock": MockTTSAdapter}
         self._image_providers: Dict[str, Type[BaseImageAdapter]] = {"mock": MockImageAdapter}
-        self._video_providers: Dict[str, Type[BaseVideoAdapter]] = {"mock": MockVideoAdapter, "local": LocalVideoAdapter, "external": ExternalVideoAdapter}
+        self._video_providers: Dict[str, Type[BaseVideoAdapter]] = {
+            "mock": MockVideoAdapter,
+            "local": LocalVideoAdapter,
+            "external": ExternalVideoAdapter,
+            "veo": GoogleVeoAdapter,
+            "kling": KlingVideoAdapter,
+            "runway": RunwayVideoAdapter,
+        }
 
     # Registration methods
     def register_llm(self, name: str, provider_cls: Type[BaseLLMAdapter]) -> None:
@@ -71,6 +103,8 @@ class ProviderRegistry:
 
     def get_video_adapter(self, provider_name: str | None = None) -> BaseVideoAdapter:
         name = (provider_name or settings.DEFAULT_VIDEO_PROVIDER).lower()
+        if name in ("chain", "resilient", "fallback"):
+            return get_video_provider_chain()
         adapter_cls = self._video_providers.get(name, MockVideoAdapter)
         return adapter_cls()
 
