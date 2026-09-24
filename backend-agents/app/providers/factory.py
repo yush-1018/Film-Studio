@@ -8,6 +8,7 @@ from app.providers.base import (
     BaseVideoAdapter,
 )
 from app.providers.local_video_adapter import LocalVideoAdapter, ExternalVideoAdapter
+from app.providers.gemini_adapter import GeminiLLMAdapter
 from app.providers.mock_adapters import (
     MockImageAdapter,
     MockLLMAdapter,
@@ -21,7 +22,11 @@ class ProviderRegistry:
     """Registry and factory for pluggable AI provider adapters."""
 
     def __init__(self):
-        self._llm_providers: Dict[str, Type[BaseLLMAdapter]] = {"mock": MockLLMAdapter}
+        self._llm_providers: Dict[str, Type[BaseLLMAdapter]] = {
+            "mock": MockLLMAdapter,
+            "gemini": GeminiLLMAdapter,
+            "google_gemini": GeminiLLMAdapter,
+        }
         self._stt_providers: Dict[str, Type[BaseSTTAdapter]] = {"mock": MockSTTAdapter}
         self._tts_providers: Dict[str, Type[BaseTTSAdapter]] = {"mock": MockTTSAdapter}
         self._image_providers: Dict[str, Type[BaseImageAdapter]] = {"mock": MockImageAdapter}
