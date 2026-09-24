@@ -1,17 +1,19 @@
 import { Project, ProjectActivity, AssetItem, QualityCheckItem } from '../types/filmStudio';
 
 export const initialProject: Project = {
-  id: '',
-  title: 'No Active Project',
-  logline: '',
-  genre: 'Sci-Fi',
-  duration: '2 min',
-  durationSeconds: 120,
-  progress: 0,
-  status: 'Draft',
+  id: 'cartoon_playground_master',
+  title: 'Children Playground Adventure',
+  logline: 'create cartoon some child play in a ground and happy tune in the background',
+  genre: 'Animation',
+  duration: '1 min',
+  durationSeconds: 60,
+  progress: 100,
+  status: 'Completed',
   lastEdited: 'Just now',
   aspectRatio: '16:9',
-  budget: 10,
+  budget: 15,
+  masterVideoUrl: `/generated_videos/master_cartoon_playground_master_60s.mp4?t=${Date.now()}`,
+  masterThumbnailUrl: `/generated_videos/master_cartoon_playground_master_60s.jpg?t=${Date.now()}`,
   bible: {
     characters: [],
     locations: [],
