@@ -128,11 +128,13 @@ class VisualGenerationAgent:
 
         genre = params.get("genre", "Sci-Fi")
 
+        user_prompt = params.get("content") or params.get("logline") or params.get("title", "")
         # 1. Synthesize the Full Assembled Master Film (e.g. 60 seconds / 1 minute minimum)
         master_movie = self.video_engine.synthesize_full_movie(
             project_id=project_id,
             title=params.get("title", "Cinematic Film"),
             genre=genre,
+            prompt=user_prompt,
             total_duration_seconds=target_duration,
             fps=24,
         )
