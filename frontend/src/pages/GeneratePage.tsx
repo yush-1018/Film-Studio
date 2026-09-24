@@ -5,6 +5,7 @@ import {
   Loader2,
   Camera,
   Play,
+  Download,
 } from 'lucide-react';
 
 import { Project, NavigationTab, Scene } from '../types/filmStudio';
@@ -31,6 +32,14 @@ export const GeneratePage: React.FC<GeneratePageProps> = ({
   const [selectedShotIndex, setSelectedShotIndex] = useState(0);
   const [viewMode, setViewMode] = useState<'master' | 'shot'>('master');
   const [generatingPartIdx, setGeneratingPartIdx] = useState<number | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>('Google Veo 3.1');
+
+  const modelOptions = [
+    { id: 'veo', name: 'Google Veo 3.1', badge: 'Primary' },
+    { id: 'kling', name: 'Kling 3.0', badge: 'Backup #1' },
+    { id: 'runway', name: 'Runway Gen-4.5', badge: 'Backup #2' },
+    { id: 'local', name: 'Local Compositor', badge: 'Safety Net' },
+  ];
 
   const isGenerating = externalIsGenerating || internalIsGenerating;
   const activeStage = externalActiveStage;
@@ -301,6 +310,107 @@ export const GeneratePage: React.FC<GeneratePageProps> = ({
         </button>
       </div>
 
+      {/* Primary Video Model Selector Bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '10px',
+          marginBottom: '14px',
+          padding: '10px 14px',
+          backgroundColor: '#181822',
+          borderRadius: '10px',
+          border: '1px solid #282836',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: '#A1A1AA' }}>⚡ Primary Video Model:</span>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {modelOptions.map((opt) => {
+              const isSel = selectedModel === opt.name;
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => setSelectedModel(opt.name)}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '6px',
+                    border: isSel ? '1px solid #7C3AED' : '1px solid #282836',
+                    backgroundColor: isSel ? '#7C3AED' : '#1F1F2C',
+                    color: isSel ? '#FFFFFF' : '#D4D4D8',
+                    fontSize: '11.5px',
+                    fontWeight: isSel ? 700 : 500,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span>{opt.name}</span>
+                  <span
+                    style={{
+                      fontSize: '9.5px',
+                      opacity: 0.85,
+                      backgroundColor: isSel ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.3)',
+                      padding: '1px 5px',
+                      borderRadius: '3px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {opt.badge}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ fontSize: '11px', color: '#6EE7B7', fontWeight: 600 }}>
+          ✓ Resilient Fallback Chain Active
+        </div>
+      </div>
+
+      {/* Backlot-style 4-Agent Stage Stepper */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '16px' }}>
+        {[
+          { step: 1, name: 'Scriptwriter Agent', desc: 'Screenplay & scenes', minProg: 15 },
+          { step: 2, name: 'Storyboard Director', desc: 'Framing & cameras', minProg: 40 },
+          { step: 3, name: 'Voice & Sound Agent', desc: 'Dialogue & score', minProg: 70 },
+          { step: 4, name: 'Video Composition', desc: selectedModel, minProg: 90 },
+        ].map((st) => {
+          const isPast = generationProgress >= st.minProg;
+          const isCurrent = isGenerating && generationProgress >= st.minProg - 25 && generationProgress < st.minProg + 25;
+          return (
+            <div
+              key={st.step}
+              style={{
+                backgroundColor: isCurrent ? 'rgba(124, 58, 237, 0.18)' : '#181822',
+                border: isCurrent ? '1px solid #8B5CF6' : isPast ? '1px solid #059669' : '1px solid #23232E',
+                borderRadius: '8px',
+                padding: '10px 12px',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
+                <span style={{ fontSize: '10px', fontWeight: 700, color: isCurrent ? '#C4B5FD' : isPast ? '#34D399' : '#71717A' }}>
+                  STAGE 0{st.step} {isPast && !isCurrent ? '✓' : ''}
+                </span>
+                {isCurrent && <Loader2 size={11} className="animate-spin" color="#A78BFA" />}
+              </div>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: isCurrent ? '#FFFFFF' : '#E4E4E7' }}>
+                {st.name}
+              </div>
+              <div style={{ fontSize: '10.5px', color: '#A1A1AA', marginTop: '2px' }}>
+                {st.desc}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {/* Generation Status Indicator */}
       {isGenerating && (
         <div
@@ -515,9 +625,37 @@ export const GeneratePage: React.FC<GeneratePageProps> = ({
             </button>
           </div>
 
-          <div style={{ fontSize: '11.5px', color: '#71717A' }}>
-            Prompt bar on the right is always active for continuous generation
-          </div>
+          {/* Right Action: Download Master Video */}
+          {currentVideoItem.videoUrl ? (
+            <a
+              href={currentVideoItem.videoUrl}
+              download={`${project.title ? project.title.replace(/\s+/g, '_') : 'film'}_master.mp4`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 16px',
+                borderRadius: '6px',
+                backgroundColor: '#059669',
+                color: '#FFFFFF',
+                fontSize: '12px',
+                fontWeight: 700,
+                textDecoration: 'none',
+                boxShadow: '0 2px 8px rgba(5, 150, 105, 0.3)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Download size={14} />
+              <span>Download Film (.mp4)</span>
+            </a>
+          ) : (
+            <div style={{ fontSize: '11.5px', color: '#71717A' }}>
+              Generate to enable 1080p MP4 export
+            </div>
+          )}
         </div>
       </div>
 

@@ -40,6 +40,33 @@ export const StoryboardPage: React.FC<StoryboardPageProps> = ({
     activeScene.shots[3] || activeScene.shots[0]
   );
 
+  const cameraPresets = [
+    { label: 'Wide Establishing', directive: 'Wide 24mm atmospheric establishing framing' },
+    { label: 'Dolly In (Close-Up)', directive: 'Slow cinematic dolly in on subject, 50mm shallow depth of field' },
+    { label: 'Pan Left / Right', directive: 'Smooth horizontal pan following motion across scene' },
+    { label: 'Crane / Drone', directive: 'High angle crane down rising into overhead perspective' },
+    { label: 'Orbit 360°', directive: 'Dynamic 360-degree rotating arc around central action' },
+  ];
+
+  const handleSelectCameraPreset = (preset: { label: string; directive: string }) => {
+    if (!inspectedShot) return;
+    const updatedShot: Shot = {
+      ...inspectedShot,
+      cameraDirective: preset.directive,
+    };
+    setInspectedShot(updatedShot);
+
+    if (onUpdateScenes && project.scenes) {
+      const newScenes = project.scenes.map((scene) => ({
+        ...scene,
+        shots: scene.shots.map((sh) =>
+          sh.id === inspectedShot.id ? { ...sh, cameraDirective: preset.directive } : sh
+        ),
+      }));
+      onUpdateScenes(newScenes);
+    }
+  };
+
   const handleRunStoryboardAgent = async () => {
     setIsAnalyzing(true);
     setAgentBanner('🎨 Storyboard Agent & Production Intelligence analyzing shot motion dynamics & assigning model strategies...');
@@ -524,6 +551,40 @@ export const StoryboardPage: React.FC<StoryboardPageProps> = ({
                 <div style={{ backgroundColor: '#FAFAFA', padding: '8px', borderRadius: '4px', border: '1px solid #E5E7EB' }}>
                   <span style={{ color: '#64748B' }}>Estimated Cost: </span>
                   <strong style={{ color: '#059669' }}>₹{inspectedShot.estimatedCost}</strong>
+                </div>
+              </div>
+
+              {/* Camera Motion Presets Selector */}
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>🎬 Camera Motion Preset</span>
+                  <span style={{ fontSize: '10px', color: '#7C3AED', fontWeight: 600 }}>Click to Apply</span>
+                </div>
+                <div style={{ fontSize: '11px', color: '#1E293B', backgroundColor: '#F3E8FF', border: '1px solid #D8B4FE', borderRadius: '4px', padding: '6px 8px', marginBottom: '8px' }}>
+                  <strong>Current: </strong>{inspectedShot.cameraDirective}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  {cameraPresets.map((preset) => {
+                    const isSelected = inspectedShot.cameraDirective === preset.directive;
+                    return (
+                      <button
+                        key={preset.label}
+                        onClick={() => handleSelectCameraPreset(preset)}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          border: isSelected ? '1px solid #7C3AED' : '1px solid #E2E8F0',
+                          backgroundColor: isSelected ? '#7C3AED' : '#FFFFFF',
+                          color: isSelected ? '#FFFFFF' : '#334155',
+                          fontSize: '10px',
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
