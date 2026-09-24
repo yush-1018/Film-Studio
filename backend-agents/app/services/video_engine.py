@@ -609,7 +609,7 @@ class LocalVideoEngine:
         shots_data: List[Dict[str, Any]],
         title: str = "Master Film",
         genre: str = "Sci-Fi",
-        target_duration: float = 120.0,
+        target_duration: float = 60.0,
     ) -> Dict[str, Any]:
         clean_proj = "".join(c if c.isalnum() or c in "-_" else "_" for c in project_id)
         master_mp4 = f"master_{clean_proj}_{int(target_duration)}s.mp4"
@@ -625,6 +625,7 @@ class LocalVideoEngine:
 
         all_drawn_tags: List[str] = []
         first_thumbnail = None
+        frames_collected: List[np.ndarray] = []
 
         for shot in shots_data:
             shot_file = shot.get("file_path")
@@ -636,11 +637,29 @@ class LocalVideoEngine:
                         break
                     if first_thumbnail is None:
                         first_thumbnail = frame.copy()
-                    writer.write(frame)
+                    frames_collected.append(frame)
                 cap.release()
             for tag in shot.get("drawn_composition_tags", []):
                 if tag not in all_drawn_tags:
                     all_drawn_tags.append(tag)
+
+        # Ensure we have enough frames to fill target_duration (e.g. at least 60 seconds)
+        target_total_frames = max(24, int(target_duration * fps))
+        if not frames_collected:
+            # Fallback frame synthesis if no shots provided
+            fallback_frame = np.zeros((h, w, 3), dtype=np.uint8)
+            cv2.putText(fallback_frame, title, (40, h // 2), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+            frames_collected = [fallback_frame]
+            first_thumbnail = fallback_frame.copy()
+
+        # Write frames, repeating/looping if total shot frames are less than target_duration
+        current_written = 0
+        frame_idx = 0
+        total_source = len(frames_collected)
+        while current_written < target_total_frames:
+            writer.write(frames_collected[frame_idx % total_source])
+            current_written += 1
+            frame_idx += 1
 
         writer.release()
 
@@ -688,9 +707,54 @@ class LocalVideoEngine:
             cv2.imwrite(str(master_jpg_path), first_thumbnail)
 
         return {
+            "video_url": f"/generated_videos/{master_mp4}",
+            "thumbnail_url": f"/generated_videos/{master_jpg}",
             "master_video_url": f"/generated_videos/{master_mp4}",
             "master_thumbnail_url": f"/generated_videos/{master_jpg}",
             "file_path": str(master_path),
             "target_duration": target_duration,
             "drawn_composition_tags": all_drawn_tags,
         }
+
+    def synthesize_full_movie(
+        self,
+        project_id: str,
+        title: str,
+        genre: str = "Sci-Fi",
+        total_duration_seconds: float = 60.0,
+        fps: int = 24,
+    ) -> Dict[str, Any]:
+        """
+        Synthesizes a complete multi-act film (minimum 60s / 1 min) with high-fidelity visuals,
+        cinematic camera motions, and synchronized stereo score.
+        """
+        acts = [
+            ("Act 1: Exposition & Atmosphere", "Establishing wide panoramic 35mm view, atmospheric depth", "dolly_in"),
+            ("Act 2: Rising Incident & Discovery", "Medium tracking shot with dynamic cinematic lighting", "pan_right"),
+            ("Act 3: Dramatic Climax & Tension", "High angle sweeping perspective with intense optical contrast", "push_in"),
+            ("Act 4: Narrative Resolution", "Wide serene cinematic closure framing", "pedestal_up"),
+        ]
+        num_acts = len(acts)
+        act_dur = round(max(5.0, total_duration_seconds / num_acts), 1)
+
+        shots_data = []
+        for idx, (act_title, camera_desc, motion) in enumerate(acts, start=1):
+            shot_res = self.synthesize_shot_video(
+                shot_id=f"{project_id}_act_{idx}",
+                shot_number=f"Act {idx}",
+                action_description=f"{title} - {act_title}",
+                camera_directive=camera_desc,
+                genre=genre,
+                duration_seconds=act_dur,
+                fps=fps,
+            )
+            shots_data.append(shot_res)
+
+        return self.assemble_master_video(
+            project_id=project_id,
+            shots_data=shots_data,
+            title=title,
+            genre=genre,
+            target_duration=total_duration_seconds,
+        )
+
