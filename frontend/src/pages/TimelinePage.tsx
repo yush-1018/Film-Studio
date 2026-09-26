@@ -24,7 +24,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
   const [firstCutAccepted, setFirstCutAccepted] = useState(false);
 
   const totalDuration = 15; // 15s preview for scene 1
-  const playheadInterval = useRef<NodeJS.Timeout | null>(null);
+  const playheadInterval = useRef<number | null>(null);
 
   const sceneShots = project.scenes[0].shots;
 
